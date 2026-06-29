@@ -1,0 +1,431 @@
+// FoodRush data model
+// Postgres + PostGIS. Geo points stored as lat/lng decimals (+ optional PostGIS
+// geography column added via migration for radius/zone queries).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  CUSTOMER
+  RESTAURANT_OWNER
+  RIDER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model User {
+  id        String     @id @default(cuid())
+  phone     String     @unique // E.164, primary login identifier
+  email     String?    @unique
+  fullName  String?
+  role      UserRole   @default(CUSTOMER)
+  status    UserStatus @default(ACTIVE)
+  avatarUrl String?
+
+  addresses     Address[]
+  carts         Cart[]
+  orders        Order[]        @relation("CustomerOrders")
+  refreshTokens RefreshToken[]
+  ownedRestaurants Restaurant[] @relation("RestaurantOwner")
+  riderProfile  RiderProfile?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String // argon2 hash of the refresh token
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model OtpChallenge {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String // argon2 hash of the 6-digit code
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+// ---------------------------------------------------------------------------
+// Addresses
+// ---------------------------------------------------------------------------
+
+enum AddressLabel {
+  HOME
+  WORK
+  OTHER
+}
+
+model Address {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     AddressLabel @default(HOME)
+  line1     String
+  line2     String?
+  city      String
+  area      String?
+  notes     String? // delivery instructions
+  latitude  Decimal      @db.Decimal(10, 7)
+  longitude Decimal      @db.Decimal(10, 7)
+  isDefault Boolean      @default(false)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Restaurants & catalog
+// ---------------------------------------------------------------------------
+
+enum RestaurantStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+model Restaurant {
+  id          String           @id @default(cuid())
+  ownerId     String
+  owner       User             @relation("RestaurantOwner", fields: [ownerId], references: [id])
+  name        String
+  slug        String           @unique
+  description String?
+  logoUrl     String?
+  coverUrl    String?
+  status      RestaurantStatus @default(PENDING_APPROVAL)
+
+  // Location & operations
+  addressLine String
+  city        String
+  latitude    Decimal  @db.Decimal(10, 7)
+  longitude   Decimal  @db.Decimal(10, 7)
+  phone       String
+
+  // Commercials & service
+  isOpen          Boolean @default(false)
+  avgPrepMinutes  Int     @default(25)
+  deliveryFee     Decimal @default(0) @db.Decimal(10, 2)
+  minOrderAmount  Decimal @default(0) @db.Decimal(10, 2)
+  deliveryRadiusKm Decimal @default(5) @db.Decimal(5, 2)
+  commissionRate  Decimal @default(0.15) @db.Decimal(5, 4) // platform cut
+  ratingAvg       Decimal @default(0) @db.Decimal(3, 2)
+  ratingCount     Int     @default(0)
+
+  cuisines    CuisineOnRestaurant[]
+  categories  MenuCategory[]
+  menuItems   MenuItem[]
+  modifierGroups ModifierGroup[]
+  orders      Order[]
+  hours       OpeningHour[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([city])
+}
+
+model Cuisine {
+  id          String                @id @default(cuid())
+  name        String                @unique
+  restaurants CuisineOnRestaurant[]
+}
+
+model CuisineOnRestaurant {
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  cuisineId    String
+  cuisine      Cuisine    @relation(fields: [cuisineId], references: [id], onDelete: Cascade)
+
+  @@id([restaurantId, cuisineId])
+}
+
+model OpeningHour {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  dayOfWeek    Int // 0 = Sunday .. 6 = Saturday
+  opensAt      String // "09:00"
+  closesAt     String // "23:00"
+
+  @@unique([restaurantId, dayOfWeek, opensAt])
+}
+
+model MenuCategory {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  sortOrder    Int        @default(0)
+  items        MenuItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([restaurantId])
+}
+
+model MenuItem {
+  id           String       @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     MenuCategory @relation(fields: [categoryId], references: [id])
+  name         String
+  description  String?
+  imageUrl     String?
+  price        Decimal      @db.Decimal(10, 2)
+  isAvailable  Boolean      @default(true)
+  sortOrder    Int          @default(0)
+
+  modifierGroups ModifierGroupOnItem[]
+  orderItems     OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([restaurantId])
+  @@index([categoryId])
+}
+
+// e.g. "Choose your size", "Add-ons"
+model ModifierGroup {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  minSelect    Int        @default(0)
+  maxSelect    Int        @default(1)
+
+  options ModifierOption[]
+  items   ModifierGroupOnItem[]
+}
+
+model ModifierOption {
+  id       String        @id @default(cuid())
+  groupId  String
+  group    ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  name     String
+  price    Decimal       @default(0) @db.Decimal(10, 2)
+  isDefault Boolean      @default(false)
+
+  @@index([groupId])
+}
+
+model ModifierGroupOnItem {
+  itemId  String
+  item    MenuItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  groupId String
+  group   ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, groupId])
+}
+
+// ---------------------------------------------------------------------------
+// Cart
+// ---------------------------------------------------------------------------
+
+model Cart {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurantId String?
+  items        CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId])
+}
+
+model CartItem {
+  id            String  @id @default(cuid())
+  cartId        String
+  cart          Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  menuItemId    String
+  quantity      Int     @default(1)
+  // Selected modifier option ids + a price snapshot, stored as JSON for flexibility.
+  modifiers     Json?
+  unitPrice     Decimal @db.Decimal(10, 2)
+  notes         String?
+
+  @@index([cartId])
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PLACED // paid / COD confirmed, awaiting restaurant
+  ACCEPTED // restaurant accepted
+  REJECTED
+  PREPARING
+  READY_FOR_PICKUP
+  RIDER_ASSIGNED
+  PICKED_UP
+  ON_THE_WAY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  CARD
+  WALLET
+  JAZZCASH
+  EASYPAISA
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Order {
+  id           String     @id @default(cuid())
+  orderNumber  String     @unique // human-friendly, e.g. FR-7QK3M2
+  customerId   String
+  customer     User       @relation("CustomerOrders", fields: [customerId], references: [id])
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  addressId    String
+  address      Address    @relation(fields: [addressId], references: [id])
+  riderId      String?
+  rider        RiderProfile? @relation(fields: [riderId], references: [id])
+
+  status        OrderStatus   @default(PENDING_PAYMENT)
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(PENDING)
+
+  // Monetary breakdown (snapshot at order time)
+  subtotal     Decimal @db.Decimal(10, 2)
+  deliveryFee  Decimal @db.Decimal(10, 2)
+  serviceFee   Decimal @default(0) @db.Decimal(10, 2)
+  discount     Decimal @default(0) @db.Decimal(10, 2)
+  total        Decimal @db.Decimal(10, 2)
+  commission   Decimal @default(0) @db.Decimal(10, 2)
+
+  notes        String?
+  placedAt     DateTime?
+  deliveredAt  DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  items       OrderItem[]
+  events      OrderEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([restaurantId])
+  @@index([riderId])
+  @@index([status])
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  name       String // snapshot
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  quantity   Int
+  modifiers  Json?
+  lineTotal  Decimal  @db.Decimal(10, 2)
+
+  @@index([orderId])
+}
+
+// Immutable audit trail of status transitions.
+model OrderEvent {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    OrderStatus
+  note      String?
+  actorId   String? // who triggered it
+  createdAt DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------------------
+// Riders
+// ---------------------------------------------------------------------------
+
+enum RiderStatus {
+  OFFLINE
+  ONLINE
+  ON_DELIVERY
+}
+
+enum VehicleType {
+  BICYCLE
+  MOTORBIKE
+  CAR
+}
+
+model RiderProfile {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleType VehicleType @default(MOTORBIKE)
+  status      RiderStatus @default(OFFLINE)
+  isApproved  Boolean     @default(false)
+
+  // Last known location (updated via heartbeat)
+  lastLatitude  Decimal? @db.Decimal(10, 7)
+  lastLongitude Decimal? @db.Decimal(10, 7)
+  lastSeenAt    DateTime?
+
+  ratingAvg   Decimal @default(0) @db.Decimal(3, 2)
+  ratingCount Int     @default(0)
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
