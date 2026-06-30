@@ -7,6 +7,7 @@ import {
   BellRing,
   UtensilsCrossed,
   History,
+  Star,
   Settings,
 } from 'lucide-react';
 
@@ -15,6 +16,7 @@ const NAV = [
   { href: '/orders', label: 'Live Orders', icon: BellRing },
   { href: '/menu', label: 'Menu', icon: UtensilsCrossed },
   { href: '/history', label: 'Order History', icon: History },
+  { href: '/reviews', label: 'Reviews', icon: Star },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

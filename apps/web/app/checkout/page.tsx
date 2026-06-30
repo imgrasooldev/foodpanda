@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { ChevronLeft, MapPin, Plus, Check } from 'lucide-react';
 import { useCart } from '@/components/cart-context';
 import { useAuth } from '@/components/auth-context';
-import { useOrders, type OrderAddress } from '@/components/orders-context';
+import { useOrders } from '@/components/orders-context';
+import { useAddresses } from '@/components/addresses-context';
 import {
   DEFAULT_DELIVERY_FEE,
   SERVICE_FEE,
@@ -14,19 +15,14 @@ import {
   applyVoucher,
 } from '@/lib/fees';
 
-const SAVED_ADDRESSES: OrderAddress[] = [
-  { label: 'Home', line1: 'House 5, Street 12, DHA Phase 6', city: 'Karachi' },
-  { label: 'Work', line1: 'Office 4, Floor 3, Tariq Road', city: 'Karachi' },
-];
-
 export default function CheckoutPage() {
   const { lines, subtotal, setQty } = useCart();
   const { user, isAuthed, openAuth } = useAuth();
   const { placeOrder } = useOrders();
+  const { addresses, addAddress, defaultAddress } = useAddresses();
   const router = useRouter();
 
-  const [addrIdx, setAddrIdx] = useState(0);
-  const [newAddr, setNewAddr] = useState<OrderAddress | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNewAddr, setShowNewAddr] = useState(false);
   const [draft, setDraft] = useState({ line1: '', city: 'Karachi' });
   const [payment, setPayment] = useState<string>('CASH_ON_DELIVERY');
@@ -66,14 +62,13 @@ export default function CheckoutPage() {
     );
   }
 
-  const addresses = newAddr ? [...SAVED_ADDRESSES, newAddr] : SAVED_ADDRESSES;
-  const chosenAddress = addresses[addrIdx];
+  const chosenAddress =
+    addresses.find((a) => a.id === selectedId) ?? defaultAddress ?? addresses[0];
 
   function saveNewAddress() {
     if (!draft.line1.trim()) return;
-    const a: OrderAddress = { label: 'Other', line1: draft.line1, city: draft.city };
-    setNewAddr(a);
-    setAddrIdx(SAVED_ADDRESSES.length);
+    const created = addAddress({ label: 'Other', line1: draft.line1, city: draft.city });
+    setSelectedId(created.id);
     setShowNewAddr(false);
     setDraft({ line1: '', city: 'Karachi' });
   }
@@ -135,18 +130,20 @@ export default function CheckoutPage() {
           {/* Address */}
           <Section title="2. Delivery address">
             <div className="space-y-2">
-              {addresses.map((a, i) => (
+              {addresses.map((a) => {
+                const active = chosenAddress?.id === a.id;
+                return (
                 <button
-                  key={i}
-                  onClick={() => setAddrIdx(i)}
+                  key={a.id}
+                  onClick={() => setSelectedId(a.id)}
                   className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition ${
-                    addrIdx === i
+                    active
                       ? 'border-brand bg-brand-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <MapPin
-                    className={`mt-0.5 h-5 w-5 ${addrIdx === i ? 'text-brand' : 'text-gray-400'}`}
+                    className={`mt-0.5 h-5 w-5 ${active ? 'text-brand' : 'text-gray-400'}`}
                   />
                   <div>
                     <p className="text-sm font-semibold">{a.label}</p>
@@ -155,7 +152,8 @@ export default function CheckoutPage() {
                     </p>
                   </div>
                 </button>
-              ))}
+                );
+              })}
 
               {showNewAddr ? (
                 <div className="rounded-xl border border-gray-200 p-3">
@@ -230,9 +228,9 @@ export default function CheckoutPage() {
                 <img src={l.image} alt={l.name} className="h-10 w-10 rounded-lg object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{l.name}</p>
-                  {l.addons.length > 0 && (
+                  {(l.addons?.length ?? 0) > 0 && (
                     <p className="truncate text-xs text-ink-muted">
-                      + {l.addons.map((a) => a.name).join(', ')}
+                      + {(l.addons ?? []).map((a) => a.name).join(', ')}
                     </p>
                   )}
                   <p className="text-xs text-ink-muted">

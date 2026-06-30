@@ -49,6 +49,7 @@ interface CartContextValue {
   subtotal: number;
   restaurantName: string | null;
   addItem: (payload: AddItemPayload) => void;
+  reorder: (lines: CartLine[]) => void;
   setQty: (lineId: string, quantity: number) => void;
   clear: () => void;
   isOpen: boolean;
@@ -136,6 +137,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  function reorder(orderLines: CartLine[]) {
+    // Normalise — older orders may predate the addons/basePrice fields.
+    setLines(
+      orderLines.map((l) => ({
+        ...l,
+        addons: l.addons ?? [],
+        basePrice: l.basePrice ?? l.price,
+        lineId: `${l.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      })),
+    );
+    setOpen(true);
+  }
+
   function setQty(lineId: string, quantity: number) {
     setLines((prev) =>
       quantity <= 0
@@ -153,6 +167,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       subtotal,
       restaurantName: lines[0]?.restaurantName ?? null,
       addItem,
+      reorder,
       setQty,
       clear: () => setLines([]),
       isOpen,

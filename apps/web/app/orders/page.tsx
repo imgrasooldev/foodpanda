@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, Receipt } from 'lucide-react';
+import { ChevronRight, Receipt, RotateCcw } from 'lucide-react';
 import { useOrders, type OrderStatus } from '@/components/orders-context';
+import { useCart } from '@/components/cart-context';
 
 const STATUS_LABEL: Record<OrderStatus, { text: string; cls: string }> = {
   PLACED: { text: 'Placed', cls: 'bg-blue-50 text-blue-700' },
@@ -15,6 +17,8 @@ const STATUS_LABEL: Record<OrderStatus, { text: string; cls: string }> = {
 
 export default function OrdersHistoryPage() {
   const { orders } = useOrders();
+  const { reorder } = useCart();
+  const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
 
@@ -61,6 +65,17 @@ export default function OrdersHistoryPage() {
                   </p>
                 </div>
                 <span className="font-bold">Rs {o.total.toLocaleString()}</span>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    reorder(o.items);
+                    router.push('/checkout');
+                  }}
+                  className="flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-brand hover:border-brand"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Reorder
+                </button>
                 <ChevronRight className="h-5 w-5 text-gray-300" />
               </Link>
             );

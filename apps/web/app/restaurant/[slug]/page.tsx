@@ -13,6 +13,7 @@ import { getRestaurantBySlug } from '@/lib/data';
 import { MenuItemRow } from '@/components/menu-item-row';
 import { MenuCategoryNav } from '@/components/menu-category-nav';
 import { FavoriteButton } from '@/components/favorite-button';
+import { RestaurantReviews } from '@/components/restaurant-reviews';
 
 export default function RestaurantPage({
   params,
@@ -132,6 +133,12 @@ export default function RestaurantPage({
             </section>
           ))}
         </div>
+
+        <RestaurantReviews
+          slug={r.slug}
+          ratingAvg={r.ratingAvg}
+          ratingCount={r.ratingCount}
+        />
       </div>
     </main>
   );

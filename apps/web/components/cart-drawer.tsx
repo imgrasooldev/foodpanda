@@ -73,9 +73,9 @@ export function CartDrawer() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{l.name}</p>
-                    {l.addons.length > 0 && (
+                    {(l.addons?.length ?? 0) > 0 && (
                       <p className="truncate text-xs text-ink-muted">
-                        + {l.addons.map((a) => a.name).join(', ')}
+                        + {(l.addons ?? []).map((a) => a.name).join(', ')}
                       </p>
                     )}
                     {l.notes && (

@@ -116,6 +116,31 @@ export const menu: VendorMenuItem[] = [
   { id: 'm5', name: 'Soft Drink 345ml', description: 'Chilled can of your choice.', price: 120, image: '/img/soft-drink.jpg', available: true, category: 'Add-ons' },
 ];
 
+export interface VendorReview {
+  id: string;
+  author: string;
+  rating: number;
+  text: string;
+  daysAgo: number;
+  reply?: string;
+}
+
+export const reviews: VendorReview[] = [
+  { id: 'rv1', author: 'Ahsan R.', rating: 5, text: 'Best biryani in Karachi, hands down. Always fresh.', daysAgo: 2, reply: 'Thank you Ahsan! See you again soon.' },
+  { id: 'rv2', author: 'Mahnoor', rating: 4, text: 'Great flavour but delivery was a bit slow.', daysAgo: 5 },
+  { id: 'rv3', author: 'Bilal K.', rating: 5, text: 'The aloo and raita combo is perfect.', daysAgo: 9 },
+  { id: 'rv4', author: 'Sana T.', rating: 3, text: 'Biryani was good but portion felt small for the price.', daysAgo: 12 },
+  { id: 'rv5', author: 'Usman', rating: 5, text: 'Consistent quality every single time. 10/10.', daysAgo: 14 },
+];
+
+export const ratingBreakdown = [
+  { stars: 5, count: 6120 },
+  { stars: 4, count: 1450 },
+  { stars: 3, count: 540 },
+  { stars: 2, count: 180 },
+  { stars: 1, count: 130 },
+];
+
 export const historyOrders: VendorOrder[] = [
   { id: 'h1', number: 'FR-1Q9W3E', customer: 'Zainab A.', items: [{ name: 'Chicken Biryani', qty: 2, price: 320 }], total: 749, payment: 'Card', status: 'COMPLETED', placedAgo: '1 hr' },
   { id: 'h2', number: 'FR-6Y2U8I', customer: 'Bilal Tariq', items: [{ name: 'Beef Biryani', qty: 3, price: 380 }], total: 1269, payment: 'Cash on Delivery', status: 'COMPLETED', placedAgo: '2 hr' },

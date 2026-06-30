@@ -66,6 +66,13 @@ export function Header() {
                   />
                   <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-card-hover">
                     <Link
+                      href="/profile"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium hover:bg-gray-50"
+                    >
+                      <User className="h-4 w-4 text-gray-500" /> My profile
+                    </Link>
+                    <Link
                       href="/orders"
                       onClick={() => setMenuOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium hover:bg-gray-50"

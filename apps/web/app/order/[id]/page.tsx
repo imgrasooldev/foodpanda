@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Check,
@@ -11,12 +11,16 @@ import {
   Receipt,
   MapPin,
   Clock,
+  Star,
 } from 'lucide-react';
 import {
   useOrders,
   STATUS_FLOW,
   type OrderStatus,
 } from '@/components/orders-context';
+import { useCart } from '@/components/cart-context';
+import { useReviews } from '@/components/reviews-context';
+import { useAuth } from '@/components/auth-context';
 
 const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
   { status: 'PLACED', label: 'Order placed', icon: Receipt },
@@ -29,6 +33,8 @@ const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
   const { getOrder, advanceStatus } = useOrders();
+  const { reorder } = useCart();
+  const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => setHydrated(true), []);
@@ -161,10 +167,10 @@ export default function OrderTrackingPage() {
               <div key={l.lineId} className="flex justify-between text-sm">
                 <span>
                   {l.quantity} × {l.name}
-                  {l.addons.length > 0 && (
+                  {(l.addons?.length ?? 0) > 0 && (
                     <span className="text-ink-muted">
                       {' '}
-                      (+ {l.addons.map((a) => a.name).join(', ')})
+                      (+ {(l.addons ?? []).map((a) => a.name).join(', ')})
                     </span>
                   )}
                 </span>
@@ -195,6 +201,10 @@ export default function OrderTrackingPage() {
           </div>
         </div>
 
+        {delivered && (
+          <RateOrder slug={order.restaurantSlug} restaurant={order.restaurantName} />
+        )}
+
         <div className="flex gap-3">
           <Link
             href="/orders"
@@ -202,11 +212,70 @@ export default function OrderTrackingPage() {
           >
             My orders
           </Link>
-          <Link href="/" className="btn-brand flex-1 justify-center py-3">
-            Order again
-          </Link>
+          <button
+            onClick={() => {
+              reorder(order.items);
+              router.push('/checkout');
+            }}
+            className="btn-brand flex-1 justify-center py-3"
+          >
+            Reorder
+          </button>
         </div>
       </div>
     </main>
+  );
+}
+
+function RateOrder({ slug, restaurant }: { slug: string; restaurant: string }) {
+  const { addReview } = useReviews();
+  const { user, isAuthed, openAuth } = useAuth();
+  const [rating, setRating] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [done, setDone] = useState(false);
+
+  if (done) {
+    return (
+      <div className="rounded-2xl bg-green-50 p-5 text-center text-sm font-semibold text-green-700">
+        Thanks for rating {restaurant}! ⭐
+      </div>
+    );
+  }
+
+  function rate(value: number) {
+    setRating(value);
+    if (!isAuthed) {
+      openAuth();
+      return;
+    }
+    addReview(slug, {
+      author: user?.name ?? 'Guest',
+      rating: value,
+      text: 'Rated from order',
+    });
+    setDone(true);
+  }
+
+  return (
+    <div className="rounded-2xl bg-white p-5 text-center shadow-card">
+      <p className="font-bold">How was your order from {restaurant}?</p>
+      <div className="mt-3 flex justify-center gap-1">
+        {[1, 2, 3, 4, 5].map((s) => (
+          <button
+            key={s}
+            onMouseEnter={() => setHover(s)}
+            onMouseLeave={() => setHover(0)}
+            onClick={() => rate(s)}
+            aria-label={`Rate ${s} stars`}
+          >
+            <Star
+              className={`h-8 w-8 transition ${
+                s <= (hover || rating) ? 'fill-amber-400 text-amber-400' : 'text-gray-300'
+              }`}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
