@@ -170,8 +170,15 @@ const menus: Record<string, RestaurantDetail['categories']> = {
       id: 'c1',
       name: 'Biryani',
       items: [
-        { id: 'sb1', name: 'Chicken Biryani', description: 'Signature double-masala chicken biryani with aloo.', price: 320, image: '/img/chicken-biryani.jpg', popular: true, spicy: true },
-        { id: 'sb2', name: 'Beef Biryani', description: 'Tender beef on fragrant basmati, slow-dum cooked.', price: 380, image: '/img/beef-biryani.jpg', popular: true, spicy: true },
+        { id: 'sb1', name: 'Chicken Biryani', description: 'Signature double-masala chicken biryani with aloo.', price: 320, image: '/img/chicken-biryani.jpg', popular: true, spicy: true, addons: [
+          { id: 'sb1a', name: 'Extra Raita', price: 50 },
+          { id: 'sb1b', name: 'Extra Aloo', price: 40 },
+          { id: 'sb1c', name: 'Soft Drink 345ml', price: 120 },
+        ] },
+        { id: 'sb2', name: 'Beef Biryani', description: 'Tender beef on fragrant basmati, slow-dum cooked.', price: 380, image: '/img/beef-biryani.jpg', popular: true, spicy: true, addons: [
+          { id: 'sb2a', name: 'Extra Raita', price: 50 },
+          { id: 'sb2b', name: 'Soft Drink 345ml', price: 120 },
+        ] },
         { id: 'sb3', name: 'Zinger Biryani', description: 'Crispy zinger fillet over special biryani rice.', price: 450, image: '/img/zinger-biryani.jpg' },
       ],
     },
@@ -242,8 +249,15 @@ const menus: Record<string, RestaurantDetail['categories']> = {
       id: 'c1',
       name: 'Burgers',
       items: [
-        { id: 'jj1', name: 'Jugnu Smash Burger', description: 'Double smashed patty, cheese, house sauce.', price: 690, image: '/img/jugnu-burger.jpg', popular: true },
-        { id: 'jj2', name: 'Crispy Chicken Burger', description: 'Buttermilk-fried chicken, slaw, spicy mayo.', price: 650, image: '/img/zinger-burger.jpg', popular: true, spicy: true },
+        { id: 'jj1', name: 'Jugnu Smash Burger', description: 'Double smashed patty, cheese, house sauce.', price: 690, image: '/img/jugnu-burger.jpg', popular: true, addons: [
+          { id: 'jj1a', name: 'Add Cheese Slice', price: 80 },
+          { id: 'jj1b', name: 'Extra Patty', price: 200 },
+          { id: 'jj1c', name: 'Make it a Meal (Fries + Drink)', price: 250 },
+        ] },
+        { id: 'jj2', name: 'Crispy Chicken Burger', description: 'Buttermilk-fried chicken, slaw, spicy mayo.', price: 650, image: '/img/zinger-burger.jpg', popular: true, spicy: true, addons: [
+          { id: 'jj2a', name: 'Add Cheese Slice', price: 80 },
+          { id: 'jj2b', name: 'Make it a Meal (Fries + Drink)', price: 250 },
+        ] },
       ],
     },
     {

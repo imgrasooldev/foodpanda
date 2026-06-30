@@ -18,6 +18,12 @@ export interface Restaurant {
   promo?: string;
 }
 
+export interface AddonOption {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -26,6 +32,7 @@ export interface MenuItem {
   image: string; // /img/...
   popular?: boolean;
   spicy?: boolean;
+  addons?: AddonOption[];
 }
 
 export interface MenuCategory {

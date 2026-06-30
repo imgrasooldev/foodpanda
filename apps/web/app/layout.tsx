@@ -4,11 +4,13 @@ import './globals.css';
 import { CartProvider } from '@/components/cart-context';
 import { AuthProvider } from '@/components/auth-context';
 import { OrdersProvider } from '@/components/orders-context';
+import { FavoritesProvider } from '@/components/favorites-context';
 import { AuthModal } from '@/components/auth-modal';
 import { PartnerBar } from '@/components/partner-bar';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { CartDrawer } from '@/components/cart-drawer';
+import { CartReplaceDialog } from '@/components/cart-replace-dialog';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -27,16 +29,19 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="font-sans antialiased">
         <AuthProvider>
-          <OrdersProvider>
-            <CartProvider>
-              <PartnerBar />
-              <Header />
-              {children}
-              <Footer />
-              <CartDrawer />
-              <AuthModal />
-            </CartProvider>
-          </OrdersProvider>
+          <FavoritesProvider>
+            <OrdersProvider>
+              <CartProvider>
+                <PartnerBar />
+                <Header />
+                {children}
+                <Footer />
+                <CartDrawer />
+                <CartReplaceDialog />
+                <AuthModal />
+              </CartProvider>
+            </OrdersProvider>
+          </FavoritesProvider>
         </AuthProvider>
       </body>
     </html>

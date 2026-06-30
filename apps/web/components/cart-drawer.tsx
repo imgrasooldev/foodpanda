@@ -64,7 +64,7 @@ export function CartDrawer() {
           <>
             <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
               {lines.map((l) => (
-                <div key={l.id} className="flex items-center gap-3">
+                <div key={l.lineId} className="flex items-start gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={l.image}
@@ -73,11 +73,21 @@ export function CartDrawer() {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{l.name}</p>
-                    <p className="text-xs text-ink-muted">Rs {l.price}</p>
+                    {l.addons.length > 0 && (
+                      <p className="truncate text-xs text-ink-muted">
+                        + {l.addons.map((a) => a.name).join(', ')}
+                      </p>
+                    )}
+                    {l.notes && (
+                      <p className="truncate text-xs italic text-gray-400">
+                        “{l.notes}”
+                      </p>
+                    )}
+                    <p className="text-xs font-medium text-ink-muted">Rs {l.price}</p>
                   </div>
                   <div className="flex items-center gap-2 rounded-full border border-gray-200 px-1">
                     <button
-                      onClick={() => setQty(l.id, l.quantity - 1)}
+                      onClick={() => setQty(l.lineId, l.quantity - 1)}
                       className="grid h-7 w-7 place-items-center rounded-full text-gray-600 hover:bg-gray-100"
                     >
                       <Minus className="h-3.5 w-3.5" />
@@ -86,7 +96,7 @@ export function CartDrawer() {
                       {l.quantity}
                     </span>
                     <button
-                      onClick={() => setQty(l.id, l.quantity + 1)}
+                      onClick={() => setQty(l.lineId, l.quantity + 1)}
                       className="grid h-7 w-7 place-items-center rounded-full text-brand hover:bg-brand-50"
                     >
                       <Plus className="h-3.5 w-3.5" />

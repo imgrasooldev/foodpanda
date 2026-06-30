@@ -41,7 +41,7 @@ export default function RestaurantPage({
             >
               <ChevronLeft className="h-4 w-4" /> Back
             </Link>
-            <FavoriteButton label={r.name} />
+            <FavoriteButton slug={r.slug} label={r.name} />
           </div>
         </div>
       </div>

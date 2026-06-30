@@ -10,6 +10,7 @@ import {
   User,
   Receipt,
   LogOut,
+  Heart,
 } from 'lucide-react';
 import { useCart } from './cart-context';
 import { useAuth } from './auth-context';
@@ -105,6 +106,13 @@ export function Header() {
           <button className="hidden items-center gap-1 text-sm font-semibold text-gray-600 md:flex">
             <Globe className="h-4 w-4" /> EN <ChevronDown className="h-3.5 w-3.5" />
           </button>
+          <Link
+            href="/favourites"
+            className="grid h-10 w-10 place-items-center rounded-full text-gray-600 hover:bg-gray-100"
+            aria-label="Favourites"
+          >
+            <Heart className="h-5 w-5" />
+          </Link>
           <button
             onClick={() => setOpen(true)}
             className="relative grid h-10 w-10 place-items-center rounded-full text-gray-600 hover:bg-gray-100"

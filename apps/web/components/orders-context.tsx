@@ -39,6 +39,7 @@ export interface Order {
   subtotal: number;
   deliveryFee: number;
   serviceFee: number;
+  discount: number;
   total: number;
   paymentMethod: string;
   address: OrderAddress;
@@ -54,6 +55,7 @@ interface NewOrderInput {
   subtotal: number;
   deliveryFee: number;
   serviceFee: number;
+  discount: number;
   total: number;
   paymentMethod: string;
   address: OrderAddress;

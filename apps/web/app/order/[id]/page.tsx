@@ -158,9 +158,15 @@ export default function OrderTrackingPage() {
 
           <div className="space-y-2 border-t border-gray-100 pt-4">
             {order.items.map((l) => (
-              <div key={l.id} className="flex justify-between text-sm">
+              <div key={l.lineId} className="flex justify-between text-sm">
                 <span>
                   {l.quantity} × {l.name}
+                  {l.addons.length > 0 && (
+                    <span className="text-ink-muted">
+                      {' '}
+                      (+ {l.addons.map((a) => a.name).join(', ')})
+                    </span>
+                  )}
                 </span>
                 <span className="font-medium">
                   Rs {(l.quantity * l.price).toLocaleString()}
@@ -176,6 +182,12 @@ export default function OrderTrackingPage() {
                 {order.paymentMethod.replace(/_/g, ' ').toLowerCase()}
               </span>
             </div>
+            {order.discount > 0 && (
+              <div className="flex justify-between text-green-600">
+                <span>Voucher discount</span>
+                <span className="font-medium">− Rs {order.discount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between text-base font-bold">
               <span>Total</span>
               <span>Rs {order.total.toLocaleString()}</span>

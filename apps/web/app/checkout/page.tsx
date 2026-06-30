@@ -7,7 +7,12 @@ import { ChevronLeft, MapPin, Plus, Check } from 'lucide-react';
 import { useCart } from '@/components/cart-context';
 import { useAuth } from '@/components/auth-context';
 import { useOrders, type OrderAddress } from '@/components/orders-context';
-import { DEFAULT_DELIVERY_FEE, SERVICE_FEE, PAYMENT_METHODS } from '@/lib/fees';
+import {
+  DEFAULT_DELIVERY_FEE,
+  SERVICE_FEE,
+  PAYMENT_METHODS,
+  applyVoucher,
+} from '@/lib/fees';
 
 const SAVED_ADDRESSES: OrderAddress[] = [
   { label: 'Home', line1: 'House 5, Street 12, DHA Phase 6', city: 'Karachi' },
@@ -26,9 +31,23 @@ export default function CheckoutPage() {
   const [draft, setDraft] = useState({ line1: '', city: 'Karachi' });
   const [payment, setPayment] = useState<string>('CASH_ON_DELIVERY');
   const [placing, setPlacing] = useState(false);
+  const [voucherCode, setVoucherCode] = useState('');
+  const [discount, setDiscount] = useState(0);
+  const [voucherMsg, setVoucherMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const deliveryFee = DEFAULT_DELIVERY_FEE;
-  const total = subtotal + deliveryFee + SERVICE_FEE;
+  const total = subtotal + deliveryFee + SERVICE_FEE - discount;
+
+  function handleApplyVoucher() {
+    const result = applyVoucher(voucherCode, subtotal);
+    if ('error' in result) {
+      setDiscount(0);
+      setVoucherMsg({ ok: false, text: result.error });
+    } else {
+      setDiscount(result.discount);
+      setVoucherMsg({ ok: true, text: `${result.voucher.label} applied!` });
+    }
+  }
   const restaurantName = lines[0]?.restaurantName ?? '';
   const restaurantSlug = lines[0]?.restaurantSlug ?? '';
 
@@ -72,13 +91,14 @@ export default function CheckoutPage() {
       subtotal,
       deliveryFee,
       serviceFee: SERVICE_FEE,
+      discount,
       total,
       paymentMethod: payment,
       address: chosenAddress,
       etaMinutes: 35,
     });
     // Clear the cart by zeroing quantities.
-    lines.forEach((l) => setQty(l.id, 0));
+    lines.forEach((l) => setQty(l.lineId, 0));
     router.push(`/order/${order.id}`);
   }
 
@@ -205,11 +225,16 @@ export default function CheckoutPage() {
 
           <div className="mb-4 space-y-3">
             {lines.map((l) => (
-              <div key={l.id} className="flex items-center gap-3">
+              <div key={l.lineId} className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={l.image} alt={l.name} className="h-10 w-10 rounded-lg object-cover" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{l.name}</p>
+                  {l.addons.length > 0 && (
+                    <p className="truncate text-xs text-ink-muted">
+                      + {l.addons.map((a) => a.name).join(', ')}
+                    </p>
+                  )}
                   <p className="text-xs text-ink-muted">
                     {l.quantity} × Rs {l.price}
                   </p>
@@ -221,10 +246,42 @@ export default function CheckoutPage() {
             ))}
           </div>
 
+          {/* Voucher */}
+          <div className="mb-4 border-t border-gray-100 pt-4">
+            <div className="flex gap-2">
+              <input
+                value={voucherCode}
+                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                placeholder="Voucher code"
+                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm uppercase outline-none focus:border-brand"
+              />
+              <button
+                onClick={handleApplyVoucher}
+                className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+              >
+                Apply
+              </button>
+            </div>
+            {voucherMsg && (
+              <p className={`mt-2 text-xs font-medium ${voucherMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
+                {voucherMsg.text}
+              </p>
+            )}
+            <p className="mt-2 text-xs text-ink-muted">
+              Try <b>FIRST100</b>, <b>FOODRUSH50</b> or <b>SAVE20</b>
+            </p>
+          </div>
+
           <div className="space-y-2 border-t border-gray-100 pt-3 text-sm">
             <Row label="Subtotal" value={subtotal} />
             <Row label="Delivery fee" value={deliveryFee} />
             <Row label="Service fee" value={SERVICE_FEE} />
+            {discount > 0 && (
+              <div className="flex justify-between text-green-600">
+                <span>Voucher discount</span>
+                <span className="font-medium">− Rs {discount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="flex justify-between border-t border-gray-100 pt-2 text-base font-bold">
               <span>Total</span>
               <span>Rs {total.toLocaleString()}</span>

@@ -1,17 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import { Heart } from 'lucide-react';
+import { useFavorites } from './favorites-context';
 
-export function FavoriteButton({ label }: { label: string }) {
-  const [fav, setFav] = useState(false);
+export function FavoriteButton({ slug, label }: { slug: string; label: string }) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const fav = isFavorite(slug);
 
   return (
     <button
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        setFav((v) => !v);
+        toggleFavorite(slug);
       }}
       aria-label={fav ? `Remove ${label} from favourites` : `Add ${label} to favourites`}
       className="grid h-9 w-9 place-items-center rounded-full bg-white/95 shadow-sm backdrop-blur transition hover:scale-110 active:scale-95"

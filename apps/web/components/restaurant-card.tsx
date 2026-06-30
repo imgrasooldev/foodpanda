@@ -28,7 +28,7 @@ export function RestaurantCard({ restaurant: r }: { restaurant: Restaurant }) {
           ) : (
             <span />
           )}
-          <FavoriteButton label={r.name} />
+          <FavoriteButton slug={r.slug} label={r.name} />
         </div>
 
         {/* Delivery-time pill (DoorDash/Wolt signature) */}
