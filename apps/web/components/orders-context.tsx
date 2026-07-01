@@ -14,7 +14,20 @@ export type OrderStatus =
   | 'ACCEPTED'
   | 'PREPARING'
   | 'ON_THE_WAY'
-  | 'DELIVERED';
+  | 'DELIVERED'
+  | 'CANCELLED';
+
+// Statuses at which a customer may still cancel (before it's out for delivery).
+export const CANCELLABLE: OrderStatus[] = ['PLACED', 'ACCEPTED', 'PREPARING'];
+
+export const CANCEL_REASONS = [
+  'Ordered by mistake',
+  'Changed my mind',
+  'Wrong delivery address',
+  'Taking too long',
+  'Found it cheaper elsewhere',
+  'Other',
+];
 
 export const STATUS_FLOW: OrderStatus[] = [
   'PLACED',
@@ -47,6 +60,8 @@ export interface Order {
   status: OrderStatus;
   placedAt: number;
   etaMinutes: number;
+  cancelReason?: string;
+  cancelledAt?: number;
 }
 
 interface NewOrderInput {
@@ -69,6 +84,7 @@ interface OrdersContextValue {
   placeOrder: (input: NewOrderInput) => Order;
   getOrder: (id: string) => Order | undefined;
   advanceStatus: (id: string) => void;
+  cancelOrder: (id: string, reason: string) => void;
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null);
@@ -121,7 +137,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       prev.map((o) => {
         if (o.id !== id) return o;
         const idx = STATUS_FLOW.indexOf(o.status);
-        if (idx < STATUS_FLOW.length - 1) {
+        // Never advance a cancelled (idx -1) or already-final order.
+        if (idx >= 0 && idx < STATUS_FLOW.length - 1) {
           return { ...o, status: STATUS_FLOW[idx + 1] };
         }
         return o;
@@ -129,8 +146,20 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  function cancelOrder(id: string, reason: string) {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === id && CANCELLABLE.includes(o.status)
+          ? { ...o, status: 'CANCELLED', cancelReason: reason, cancelledAt: Date.now() }
+          : o,
+      ),
+    );
+  }
+
   return (
-    <OrdersContext.Provider value={{ orders, placeOrder, getOrder, advanceStatus }}>
+    <OrdersContext.Provider
+      value={{ orders, placeOrder, getOrder, advanceStatus, cancelOrder }}
+    >
       {children}
     </OrdersContext.Provider>
   );

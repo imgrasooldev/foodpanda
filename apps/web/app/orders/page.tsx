@@ -13,6 +13,7 @@ const STATUS_LABEL: Record<OrderStatus, { text: string; cls: string }> = {
   PREPARING: { text: 'Preparing', cls: 'bg-amber-50 text-amber-700' },
   ON_THE_WAY: { text: 'On the way', cls: 'bg-violet-50 text-violet-700' },
   DELIVERED: { text: 'Delivered', cls: 'bg-green-50 text-green-700' },
+  CANCELLED: { text: 'Cancelled', cls: 'bg-red-50 text-red-600' },
 };
 
 export default function OrdersHistoryPage() {

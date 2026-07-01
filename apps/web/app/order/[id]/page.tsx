@@ -12,10 +12,13 @@ import {
   MapPin,
   Clock,
   Star,
+  XCircle,
 } from 'lucide-react';
 import {
   useOrders,
   STATUS_FLOW,
+  CANCELLABLE,
+  CANCEL_REASONS,
   type OrderStatus,
 } from '@/components/orders-context';
 import { useCart } from '@/components/cart-context';
@@ -32,19 +35,21 @@ const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
 
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
-  const { getOrder, advanceStatus } = useOrders();
+  const { getOrder, advanceStatus, cancelOrder } = useOrders();
   const { reorder } = useCart();
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
 
   useEffect(() => setHydrated(true), []);
 
   const order = getOrder(id);
   const currentIdx = order ? STATUS_FLOW.indexOf(order.status) : 0;
 
-  // Simulate kitchen + delivery progress.
+  // Simulate kitchen + delivery progress (stops once delivered or cancelled).
   useEffect(() => {
-    if (!order || order.status === 'DELIVERED') return;
+    if (!order || order.status === 'DELIVERED' || order.status === 'CANCELLED')
+      return;
     const t = setTimeout(() => advanceStatus(order.id), 6000);
     return () => clearTimeout(t);
   }, [order, advanceStatus]);
@@ -68,6 +73,8 @@ export default function OrderTrackingPage() {
   }
 
   const delivered = order.status === 'DELIVERED';
+  const cancelled = order.status === 'CANCELLED';
+  const cancellable = CANCELLABLE.includes(order.status);
   const isPickup = order.fulfillmentType === 'PICKUP';
   const progress = currentIdx / (STATUS_FLOW.length - 1);
 
@@ -75,6 +82,69 @@ export default function OrderTrackingPage() {
     ON_THE_WAY: 'Ready for pickup',
     DELIVERED: 'Collected',
   };
+
+  // --- Cancelled view ---
+  if (cancelled) {
+    return (
+      <main className="container-page py-6">
+        <div className="mx-auto max-w-2xl space-y-6">
+          <div className="rounded-2xl bg-gradient-to-r from-red-500 to-red-700 p-6 text-white">
+            <p className="text-sm text-white/80">Order {order.number}</p>
+            <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold">
+              <XCircle className="h-6 w-6" /> Order cancelled
+            </h1>
+            <p className="mt-2 text-white/90">
+              This order was cancelled{order.cancelReason ? ` — ${order.cancelReason}` : ''}.
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-6 shadow-card">
+            {order.paymentMethod === 'CASH_ON_DELIVERY' ? (
+              <p className="text-sm text-ink-muted">
+                No charge — this was a cash-on-delivery order, so nothing was paid.
+              </p>
+            ) : (
+              <p className="text-sm text-ink-muted">
+                Any amount charged will be refunded to your original payment method
+                within 5–7 business days.
+              </p>
+            )}
+            <div className="mt-4 space-y-1.5 border-t border-gray-100 pt-4 text-sm">
+              <p className="font-semibold">{order.restaurantName}</p>
+              {order.items.map((l) => (
+                <div key={l.lineId} className="flex justify-between text-ink-muted">
+                  <span>{l.quantity} × {l.name}</span>
+                  <span>Rs {(l.quantity * l.price).toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="flex justify-between pt-1 font-bold text-ink">
+                <span>Order total</span>
+                <span>Rs {order.total.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Link
+              href="/orders"
+              className="flex-1 rounded-full border border-gray-300 py-3 text-center font-semibold hover:bg-gray-50"
+            >
+              My orders
+            </Link>
+            <button
+              onClick={() => {
+                reorder(order.items);
+                router.push('/checkout');
+              }}
+              className="btn-brand flex-1 justify-center py-3"
+            >
+              Order again
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="container-page py-6">
@@ -224,6 +294,16 @@ export default function OrderTrackingPage() {
           <RateOrder slug={order.restaurantSlug} restaurant={order.restaurantName} />
         )}
 
+        {/* Cancel — only before the order is out for delivery */}
+        {cancellable && (
+          <button
+            onClick={() => setShowCancel(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+          >
+            <XCircle className="h-4 w-4" /> Cancel order
+          </button>
+        )}
+
         <div className="flex gap-3">
           <Link
             href="/orders"
@@ -242,7 +322,73 @@ export default function OrderTrackingPage() {
           </button>
         </div>
       </div>
+
+      {showCancel && (
+        <CancelDialog
+          onClose={() => setShowCancel(false)}
+          onConfirm={(reason) => {
+            cancelOrder(order.id, reason);
+            setShowCancel(false);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+function CancelDialog({
+  onClose,
+  onConfirm,
+}: {
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState('');
+
+  return (
+    <div className="fixed inset-0 z-[60] grid place-items-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="text-lg font-extrabold">Cancel this order?</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Tell us why you&apos;re cancelling. This can&apos;t be undone.
+        </p>
+
+        <div className="mt-4 space-y-1">
+          {CANCEL_REASONS.map((r) => (
+            <label
+              key={r}
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-2 text-sm hover:bg-gray-50"
+            >
+              <input
+                type="radio"
+                name="cancel-reason"
+                checked={reason === r}
+                onChange={() => setReason(r)}
+                className="h-4 w-4 accent-brand"
+              />
+              {r}
+            </label>
+          ))}
+        </div>
+
+        <div className="mt-5 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-full border border-gray-300 py-2.5 font-semibold hover:bg-gray-50"
+          >
+            Keep order
+          </button>
+          <button
+            onClick={() => onConfirm(reason)}
+            disabled={!reason}
+            className="flex-1 rounded-full bg-red-600 py-2.5 font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+          >
+            Cancel order
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
