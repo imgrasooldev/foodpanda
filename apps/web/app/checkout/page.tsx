@@ -89,6 +89,7 @@ export default function CheckoutPage() {
     }
     setPlacing(true);
     const order = placeOrder({
+      customerName: user?.name ?? 'Guest',
       restaurantName,
       restaurantSlug,
       items: lines,

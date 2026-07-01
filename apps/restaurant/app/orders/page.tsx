@@ -1,38 +1,65 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, X, ChefHat, Bike, Clock, StickyNote } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Check, X, ChefHat, Bike, Clock, PackageCheck, RefreshCw } from 'lucide-react';
 import { Topbar } from '@/components/topbar';
-import {
-  incomingOrders,
-  type VendorOrder,
-  type VendorOrderStatus,
-} from '@/lib/data';
+import { fetchOrders, patchOrder, type SyncOrder } from '@/lib/order-sync';
 
-const COLUMNS: { status: VendorOrderStatus; title: string; tint: string }[] = [
-  { status: 'NEW', title: 'New', tint: 'text-blue-600' },
-  { status: 'PREPARING', title: 'Preparing', tint: 'text-amber-600' },
-  { status: 'READY', title: 'Ready for pickup', tint: 'text-green-600' },
+// This vendor is Student Biryani — only show their orders.
+const MY_SLUG = 'student-biryani';
+
+const COLUMNS: {
+  title: string;
+  tint: string;
+  statuses: string[];
+}[] = [
+  { title: 'New — needs approval', tint: 'text-blue-600', statuses: ['PLACED'] },
+  { title: 'Preparing', tint: 'text-amber-600', statuses: ['ACCEPTED', 'PREPARING'] },
+  { title: 'Out for delivery', tint: 'text-violet-600', statuses: ['ON_THE_WAY'] },
 ];
 
 export default function LiveOrdersPage() {
-  const [orders, setOrders] = useState<VendorOrder[]>(incomingOrders);
+  const [orders, setOrders] = useState<SyncOrder[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const setStatus = (id: string, status: VendorOrderStatus) =>
+  const load = useCallback(async () => {
+    const all = await fetchOrders();
+    setOrders(all.filter((o) => o.restaurantSlug === MY_SLUG));
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 3000); // poll for new customer orders
+    return () => clearInterval(t);
+  }, [load]);
+
+  async function setStatus(id: string, status: string) {
+    // optimistic update, then persist
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+    await patchOrder(id, { status });
+    load();
+  }
 
-  const remove = (id: string) =>
-    setOrders((prev) => prev.filter((o) => o.id !== id));
+  const active = orders.filter((o) =>
+    ['PLACED', 'ACCEPTED', 'PREPARING', 'ON_THE_WAY'].includes(o.status),
+  );
 
   return (
     <>
       <Topbar title="Live Orders" subtitle="Accept and manage incoming orders" />
       <main className="p-6">
+        <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
+          <RefreshCw className="h-4 w-4" />
+          Live — updates automatically as customers order
+          {loading && <span className="text-slate-400">· loading…</span>}
+        </div>
+
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           {COLUMNS.map((col) => {
-            const items = orders.filter((o) => o.status === col.status);
+            const items = active.filter((o) => col.statuses.includes(o.status));
             return (
-              <div key={col.status} className="rounded-2xl bg-slate-100/70 p-3">
+              <div key={col.title} className="rounded-2xl bg-slate-100/70 p-3">
                 <div className="mb-3 flex items-center justify-between px-2">
                   <h2 className={`text-sm font-bold uppercase tracking-wide ${col.tint}`}>
                     {col.title}
@@ -49,14 +76,7 @@ export default function LiveOrdersPage() {
                     </p>
                   )}
                   {items.map((o) => (
-                    <OrderCard
-                      key={o.id}
-                      order={o}
-                      onAccept={() => setStatus(o.id, 'PREPARING')}
-                      onReject={() => remove(o.id)}
-                      onReady={() => setStatus(o.id, 'READY')}
-                      onHandover={() => remove(o.id)}
-                    />
+                    <OrderCard key={o.id} order={o} onSetStatus={setStatus} />
                   ))}
                 </div>
               </div>
@@ -68,28 +88,28 @@ export default function LiveOrdersPage() {
   );
 }
 
+function timeAgo(ts: number): string {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return `${s}s`;
+  return `${Math.floor(s / 60)} min`;
+}
+
 function OrderCard({
   order: o,
-  onAccept,
-  onReject,
-  onReady,
-  onHandover,
+  onSetStatus,
 }: {
-  order: VendorOrder;
-  onAccept: () => void;
-  onReject: () => void;
-  onReady: () => void;
-  onHandover: () => void;
+  order: SyncOrder;
+  onSetStatus: (id: string, status: string) => void;
 }) {
   return (
     <div className="rounded-xl bg-white p-4 shadow-card">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-bold">{o.number}</p>
-          <p className="text-sm text-slate-500">{o.customer}</p>
+          <p className="text-sm text-slate-500">{o.customerName ?? 'Customer'}</p>
         </div>
         <span className="flex items-center gap-1 text-xs text-slate-400">
-          <Clock className="h-3.5 w-3.5" /> {o.placedAgo} ago
+          <Clock className="h-3.5 w-3.5" /> {timeAgo(o.placedAt)} ago
         </span>
       </div>
 
@@ -97,54 +117,60 @@ function OrderCard({
         {o.items.map((it, i) => (
           <div key={i} className="flex justify-between text-sm">
             <span className="font-medium">
-              {it.qty}× {it.name}
+              {it.quantity}× {it.name}
             </span>
-            <span className="text-slate-500">Rs {(it.qty * it.price).toLocaleString()}</span>
+            <span className="text-slate-500">
+              Rs {(it.quantity * it.price).toLocaleString()}
+            </span>
           </div>
         ))}
       </div>
 
-      {o.note && (
-        <p className="mb-3 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
-          <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {o.note}
-        </p>
-      )}
-
       <div className="mb-3 flex items-center justify-between text-sm">
-        <span className="text-slate-400">{o.payment}</span>
+        <span className="text-slate-400">
+          {o.paymentMethod.replace(/_/g, ' ').toLowerCase()}
+        </span>
         <span className="font-bold">Rs {o.total.toLocaleString()}</span>
       </div>
 
-      {o.status === 'NEW' && (
+      {o.status === 'PLACED' && (
         <div className="flex gap-2">
           <button
-            onClick={onReject}
+            onClick={() => onSetStatus(o.id, 'REJECTED')}
             className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
           >
             <X className="h-4 w-4" /> Reject
           </button>
           <button
-            onClick={onAccept}
+            onClick={() => onSetStatus(o.id, 'ACCEPTED')}
             className="flex flex-[2] items-center justify-center gap-1 rounded-lg bg-green-600 py-2 text-sm font-semibold text-white hover:bg-green-700"
           >
             <Check className="h-4 w-4" /> Accept
           </button>
         </div>
       )}
-      {o.status === 'PREPARING' && (
+      {o.status === 'ACCEPTED' && (
         <button
-          onClick={onReady}
+          onClick={() => onSetStatus(o.id, 'PREPARING')}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand py-2 text-sm font-semibold text-white hover:bg-brand-700"
         >
-          <ChefHat className="h-4 w-4" /> Mark as ready
+          <ChefHat className="h-4 w-4" /> Start preparing
         </button>
       )}
-      {o.status === 'READY' && (
+      {o.status === 'PREPARING' && (
         <button
-          onClick={onHandover}
+          onClick={() => onSetStatus(o.id, 'ON_THE_WAY')}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-brand py-2 text-sm font-semibold text-white hover:bg-brand-700"
+        >
+          <Bike className="h-4 w-4" /> Ready — out for delivery
+        </button>
+      )}
+      {o.status === 'ON_THE_WAY' && (
+        <button
+          onClick={() => onSetStatus(o.id, 'DELIVERED')}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 py-2 text-sm font-semibold text-white hover:bg-slate-700"
         >
-          <Bike className="h-4 w-4" /> Hand to rider
+          <PackageCheck className="h-4 w-4" /> Mark delivered
         </button>
       )}
     </div>

@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { CartLine } from './cart-context';
+import { pushOrder, patchServerOrder } from '@/lib/order-sync';
 
 export type OrderStatus =
   | 'PLACED' // awaiting restaurant confirmation
@@ -59,6 +60,7 @@ export interface OrderAddress {
 export interface Order {
   id: string;
   number: string;
+  customerName: string;
   restaurantName: string;
   restaurantSlug: string;
   items: CartLine[];
@@ -78,6 +80,7 @@ export interface Order {
 }
 
 interface NewOrderInput {
+  customerName: string;
   restaurantName: string;
   restaurantSlug: string;
   items: CartLine[];
@@ -99,6 +102,8 @@ interface OrdersContextValue {
   advanceStatus: (id: string) => void;
   cancelOrder: (id: string, reason: string) => void;
   rejectOrder: (id: string, reason: string) => void;
+  /** Merge live status pushed by the restaurant (from the sync server). */
+  mergeServerStatus: (id: string, status: OrderStatus, cancelReason?: string) => void;
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null);
@@ -139,7 +144,19 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       placedAt: Date.now(),
     };
     setOrders((prev) => [order, ...prev]);
+    // Send to the restaurant via the sync server (best-effort).
+    void pushOrder(order);
     return order;
+  }
+
+  function mergeServerStatus(id: string, status: OrderStatus, cancelReason?: string) {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === id && o.status !== status
+          ? { ...o, status, ...(cancelReason ? { cancelReason } : {}) }
+          : o,
+      ),
+    );
   }
 
   function getOrder(id: string) {
@@ -168,6 +185,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           : o,
       ),
     );
+    // Tell the restaurant the customer cancelled.
+    void patchServerOrder(id, { status: 'CANCELLED', cancelReason: reason });
   }
 
   // Restaurant declines an order that is still awaiting confirmation.
@@ -183,7 +202,15 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
   return (
     <OrdersContext.Provider
-      value={{ orders, placeOrder, getOrder, advanceStatus, cancelOrder, rejectOrder }}
+      value={{
+        orders,
+        placeOrder,
+        getOrder,
+        advanceStatus,
+        cancelOrder,
+        rejectOrder,
+        mergeServerStatus,
+      }}
     >
       {children}
     </OrdersContext.Provider>

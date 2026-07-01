@@ -19,10 +19,9 @@ import {
   STATUS_FLOW,
   CANCELLABLE,
   CANCEL_REASONS,
-  STEP_DELAYS,
-  REJECTION_CHANCE,
   type OrderStatus,
 } from '@/components/orders-context';
+import { fetchServerOrder } from '@/lib/order-sync';
 import { useCart } from '@/components/cart-context';
 import { useReviews } from '@/components/reviews-context';
 import { useAuth } from '@/components/auth-context';
@@ -56,7 +55,7 @@ function statusHeadline(status: OrderStatus, isPickup: boolean): string {
 
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
-  const { getOrder, advanceStatus, cancelOrder, rejectOrder } = useOrders();
+  const { getOrder, cancelOrder, mergeServerStatus } = useOrders();
   const { reorder } = useCart();
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
@@ -67,25 +66,20 @@ export default function OrderTrackingPage() {
   const order = getOrder(id);
   const currentIdx = order ? STATUS_FLOW.indexOf(order.status) : 0;
 
-  // Simulate the real lifecycle: the restaurant confirms (or declines) the
-  // order, then kitchen + delivery progress — each stage with a realistic wait.
+  // Live status is driven by the restaurant. Poll the sync server so the
+  // customer sees the real accept/reject/prepare/deliver updates.
   useEffect(() => {
     if (!order) return;
     const terminal: OrderStatus[] = ['DELIVERED', 'CANCELLED', 'REJECTED'];
     if (terminal.includes(order.status)) return;
-    const delay = STEP_DELAYS[order.status] ?? 6000;
-    const t = setTimeout(() => {
-      if (order.status === 'PLACED' && Math.random() < REJECTION_CHANCE) {
-        rejectOrder(
-          order.id,
-          'The restaurant is too busy to accept your order right now',
-        );
-      } else {
-        advanceStatus(order.id);
+    const poll = setInterval(async () => {
+      const server = await fetchServerOrder(order.id);
+      if (server?.status) {
+        mergeServerStatus(order.id, server.status as OrderStatus, server.cancelReason);
       }
-    }, delay);
-    return () => clearTimeout(t);
-  }, [order, advanceStatus, rejectOrder]);
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [order, mergeServerStatus]);
 
   if (!hydrated) {
     return <main className="container-page py-16 text-center text-ink-muted">Loading…</main>;

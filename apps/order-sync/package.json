@@ -1,0 +1,10 @@
+{
+  "name": "order-sync",
+  "version": "0.1.0",
+  "private": true,
+  "description": "In-memory order relay so customer + vendor apps share live order state without a database",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
+  }
+}

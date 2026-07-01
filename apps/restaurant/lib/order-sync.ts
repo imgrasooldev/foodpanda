@@ -1,0 +1,41 @@
+// Vendor client for the shared order-sync server.
+const SYNC = process.env.NEXT_PUBLIC_SYNC_URL ?? 'http://localhost:4100';
+
+export interface SyncOrder {
+  id: string;
+  number: string;
+  customerName?: string;
+  restaurantName: string;
+  restaurantSlug: string;
+  items: { name: string; quantity: number; price: number }[];
+  total: number;
+  paymentMethod: string;
+  status: string;
+  placedAt: number;
+  cancelReason?: string;
+}
+
+export async function fetchOrders(): Promise<SyncOrder[]> {
+  try {
+    const r = await fetch(`${SYNC}/orders`, { cache: 'no-store' });
+    if (!r.ok) return [];
+    return r.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function patchOrder(
+  id: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await fetch(`${SYNC}/orders/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+  } catch {
+    /* offline */
+  }
+}
