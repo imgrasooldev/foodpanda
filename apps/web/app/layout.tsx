@@ -7,6 +7,7 @@ import { OrdersProvider } from '@/components/orders-context';
 import { FavoritesProvider } from '@/components/favorites-context';
 import { AddressesProvider } from '@/components/addresses-context';
 import { ReviewsProvider } from '@/components/reviews-context';
+import { OrderModeProvider } from '@/components/order-mode-context';
 import { AuthModal } from '@/components/auth-modal';
 import { PartnerBar } from '@/components/partner-bar';
 import { Header } from '@/components/header';
@@ -34,17 +35,19 @@ export default function RootLayout({
           <FavoritesProvider>
             <AddressesProvider>
               <ReviewsProvider>
-                <OrdersProvider>
-                  <CartProvider>
-                    <PartnerBar />
-                    <Header />
-                    {children}
-                    <Footer />
-                    <CartDrawer />
-                    <CartReplaceDialog />
-                    <AuthModal />
-                  </CartProvider>
-                </OrdersProvider>
+                <OrderModeProvider>
+                  <OrdersProvider>
+                    <CartProvider>
+                      <PartnerBar />
+                      <Header />
+                      {children}
+                      <Footer />
+                      <CartDrawer />
+                      <CartReplaceDialog />
+                      <AuthModal />
+                    </CartProvider>
+                  </OrdersProvider>
+                </OrderModeProvider>
               </ReviewsProvider>
             </AddressesProvider>
           </FavoritesProvider>

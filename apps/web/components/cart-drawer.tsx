@@ -4,15 +4,16 @@ import { useRouter } from 'next/navigation';
 import { X, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { useCart } from './cart-context';
 import { useAuth } from './auth-context';
+import { useOrderMode } from './order-mode-context';
 import { DEFAULT_DELIVERY_FEE, SERVICE_FEE } from '@/lib/fees';
-
-const DELIVERY_FEE = DEFAULT_DELIVERY_FEE;
 
 export function CartDrawer() {
   const { lines, isOpen, setOpen, setQty, subtotal, count } = useCart();
   const { isAuthed, openAuth } = useAuth();
+  const { isPickup } = useOrderMode();
   const router = useRouter();
 
+  const DELIVERY_FEE = isPickup ? 0 : DEFAULT_DELIVERY_FEE;
   const total = lines.length ? subtotal + DELIVERY_FEE + SERVICE_FEE : 0;
 
   function handleCheckout() {
@@ -108,7 +109,14 @@ export function CartDrawer() {
 
             <div className="space-y-2 border-t border-gray-100 px-5 py-4 text-sm">
               <Row label="Subtotal" value={subtotal} />
-              <Row label="Delivery fee" value={DELIVERY_FEE} />
+              {isPickup ? (
+                <div className="flex justify-between text-ink-muted">
+                  <span>Pick-up</span>
+                  <span className="font-medium text-green-600">Free</span>
+                </div>
+              ) : (
+                <Row label="Delivery fee" value={DELIVERY_FEE} />
+              )}
               <Row label="Service fee" value={SERVICE_FEE} />
               <div className="flex justify-between pt-2 text-base font-bold">
                 <span>Total</span>

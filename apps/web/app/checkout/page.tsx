@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, MapPin, Plus, Check } from 'lucide-react';
+import { ChevronLeft, MapPin, Plus, Check, Store } from 'lucide-react';
 import { useCart } from '@/components/cart-context';
 import { useAuth } from '@/components/auth-context';
 import { useOrders } from '@/components/orders-context';
 import { useAddresses } from '@/components/addresses-context';
+import { useOrderMode } from '@/components/order-mode-context';
+import { getRestaurantBySlug } from '@/lib/data';
 import {
   DEFAULT_DELIVERY_FEE,
   SERVICE_FEE,
@@ -20,6 +22,7 @@ export default function CheckoutPage() {
   const { user, isAuthed, openAuth } = useAuth();
   const { placeOrder } = useOrders();
   const { addresses, addAddress, defaultAddress } = useAddresses();
+  const { isPickup } = useOrderMode();
   const router = useRouter();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -31,7 +34,7 @@ export default function CheckoutPage() {
   const [discount, setDiscount] = useState(0);
   const [voucherMsg, setVoucherMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const deliveryFee = DEFAULT_DELIVERY_FEE;
+  const deliveryFee = isPickup ? 0 : DEFAULT_DELIVERY_FEE;
   const total = subtotal + deliveryFee + SERVICE_FEE - discount;
 
   function handleApplyVoucher() {
@@ -46,6 +49,12 @@ export default function CheckoutPage() {
   }
   const restaurantName = lines[0]?.restaurantName ?? '';
   const restaurantSlug = lines[0]?.restaurantSlug ?? '';
+  const pickupRestaurant = restaurantSlug ? getRestaurantBySlug(restaurantSlug) : undefined;
+  const pickupAddress = {
+    label: 'Pick-up point',
+    line1: restaurantName,
+    city: pickupRestaurant?.city ?? '',
+  };
 
   if (lines.length === 0) {
     return (
@@ -89,8 +98,9 @@ export default function CheckoutPage() {
       discount,
       total,
       paymentMethod: payment,
-      address: chosenAddress,
-      etaMinutes: 35,
+      address: isPickup ? pickupAddress : chosenAddress,
+      fulfillmentType: isPickup ? 'PICKUP' : 'DELIVERY',
+      etaMinutes: isPickup ? (pickupRestaurant?.avgPrepMinutes ?? 20) : 35,
     });
     // Clear the cart by zeroing quantities.
     lines.forEach((l) => setQty(l.lineId, 0));
@@ -127,7 +137,25 @@ export default function CheckoutPage() {
             )}
           </Section>
 
-          {/* Address */}
+          {/* Address (delivery) or Pickup location */}
+          {isPickup ? (
+            <Section title="2. Pick-up location">
+              <div className="flex items-start gap-3 rounded-xl border border-brand bg-brand-50 p-4">
+                <Store className="mt-0.5 h-5 w-5 text-brand" />
+                <div>
+                  <p className="text-sm font-semibold">{restaurantName}</p>
+                  <p className="text-sm text-ink-muted">
+                    {pickupAddress.city
+                      ? `Collect from the restaurant · ${pickupAddress.city}`
+                      : 'Collect from the restaurant'}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-green-600">
+                    No delivery fee — ready in ~{pickupRestaurant?.avgPrepMinutes ?? 20} min
+                  </p>
+                </div>
+              </div>
+            </Section>
+          ) : (
           <Section title="2. Delivery address">
             <div className="space-y-2">
               {addresses.map((a) => {
@@ -191,6 +219,7 @@ export default function CheckoutPage() {
               )}
             </div>
           </Section>
+          )}
 
           {/* Payment */}
           <Section title="3. Payment method">
@@ -272,7 +301,14 @@ export default function CheckoutPage() {
 
           <div className="space-y-2 border-t border-gray-100 pt-3 text-sm">
             <Row label="Subtotal" value={subtotal} />
-            <Row label="Delivery fee" value={deliveryFee} />
+            {isPickup ? (
+              <div className="flex justify-between text-ink-muted">
+                <span>Pick-up</span>
+                <span className="font-medium text-green-600">Free</span>
+              </div>
+            ) : (
+              <Row label="Delivery fee" value={deliveryFee} />
+            )}
             <Row label="Service fee" value={SERVICE_FEE} />
             {discount > 0 && (
               <div className="flex justify-between text-green-600">

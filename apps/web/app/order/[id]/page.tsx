@@ -68,22 +68,38 @@ export default function OrderTrackingPage() {
   }
 
   const delivered = order.status === 'DELIVERED';
+  const isPickup = order.fulfillmentType === 'PICKUP';
   const progress = currentIdx / (STATUS_FLOW.length - 1);
+
+  const pickupLabel: Partial<Record<OrderStatus, string>> = {
+    ON_THE_WAY: 'Ready for pickup',
+    DELIVERED: 'Collected',
+  };
 
   return (
     <main className="container-page py-6">
       <div className="mx-auto max-w-2xl space-y-6">
         {/* Header */}
         <div className="rounded-2xl bg-gradient-to-r from-brand to-brand-900 p-6 text-white">
-          <p className="text-sm text-white/80">Order {order.number}</p>
+          <p className="text-sm text-white/80">
+            Order {order.number} · {isPickup ? 'Pick-up' : 'Delivery'}
+          </p>
           <h1 className="mt-1 text-2xl font-extrabold">
-            {delivered ? 'Delivered — enjoy your meal! 🎉' : 'Your order is on its way'}
+            {delivered
+              ? isPickup
+                ? 'Collected — enjoy your meal! 🎉'
+                : 'Delivered — enjoy your meal! 🎉'
+              : isPickup
+                ? 'Getting your order ready'
+                : 'Your order is on its way'}
           </h1>
           <p className="mt-2 flex items-center gap-2 text-white/90">
             <Clock className="h-4 w-4" />
             {delivered
               ? 'Completed just now'
-              : `Estimated arrival in ~${order.etaMinutes} min`}
+              : isPickup
+                ? `Ready for pickup in ~${order.etaMinutes} min`
+                : `Estimated arrival in ~${order.etaMinutes} min`}
           </p>
         </div>
 
@@ -101,16 +117,16 @@ export default function OrderTrackingPage() {
             <span className="absolute left-6 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-white text-lg shadow">
               🏪
             </span>
-            {/* home */}
+            {/* home / you */}
             <span className="absolute right-6 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-white text-lg shadow">
-              🏠
+              {isPickup ? '🧍' : '🏠'}
             </span>
-            {/* rider */}
+            {/* rider / pickup bag */}
             <span
               className="absolute top-1/2 -translate-y-[150%] text-2xl transition-all duration-700"
               style={{ left: `calc(${12 + progress * 76}% )` }}
             >
-              🛵
+              {isPickup ? '🛍️' : '🛵'}
             </span>
           </div>
         </div>
@@ -139,7 +155,7 @@ export default function OrderTrackingPage() {
                         done || active ? 'text-ink' : 'text-gray-400'
                       }`}
                     >
-                      {step.label}
+                      {(isPickup && pickupLabel[step.status]) || step.label}
                     </p>
                     {active && !delivered && (
                       <p className="text-sm text-brand">In progress…</p>
@@ -159,7 +175,10 @@ export default function OrderTrackingPage() {
           <h2 className="mb-4 font-bold">Order details</h2>
           <p className="mb-1 font-semibold">{order.restaurantName}</p>
           <p className="mb-4 flex items-center gap-1.5 text-sm text-ink-muted">
-            <MapPin className="h-4 w-4" /> {order.address.line1}, {order.address.city}
+            <MapPin className="h-4 w-4" />
+            {isPickup ? 'Pick-up from ' : 'Deliver to '}
+            {order.address.line1}
+            {order.address.city ? `, ${order.address.city}` : ''}
           </p>
 
           <div className="space-y-2 border-t border-gray-100 pt-4">

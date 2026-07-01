@@ -43,6 +43,7 @@ export interface Order {
   total: number;
   paymentMethod: string;
   address: OrderAddress;
+  fulfillmentType: 'DELIVERY' | 'PICKUP';
   status: OrderStatus;
   placedAt: number;
   etaMinutes: number;
@@ -59,6 +60,7 @@ interface NewOrderInput {
   total: number;
   paymentMethod: string;
   address: OrderAddress;
+  fulfillmentType: 'DELIVERY' | 'PICKUP';
   etaMinutes: number;
 }
 
