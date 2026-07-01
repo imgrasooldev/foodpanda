@@ -75,3 +75,23 @@ export const restaurants: AdminRestaurant[] = [
   { name: 'Lahore Tikka House', cuisine: 'BBQ · Desi', city: 'Lahore', status: 'PENDING_APPROVAL', orders: 0, rating: 0, image: '/img/chicken-tikka.jpg' },
   { name: 'Midnight Diner', cuisine: 'Fast Food', city: 'Karachi', status: 'SUSPENDED', orders: 410, rating: 3.4, image: '/img/zinger-burger.jpg' },
 ];
+
+export interface AdminCustomer {
+  name: string;
+  phone: string;
+  city: string;
+  orders: number;
+  spent: number;
+  joined: string;
+  status: 'ACTIVE' | 'BLOCKED';
+}
+
+export const customers: AdminCustomer[] = [
+  { name: 'Ali Khan', phone: '+92 300 1234567', city: 'Karachi', orders: 42, spent: 38400, joined: 'Jan 2026', status: 'ACTIVE' },
+  { name: 'Sara Ahmed', phone: '+92 301 2345678', city: 'Karachi', orders: 28, spent: 21200, joined: 'Feb 2026', status: 'ACTIVE' },
+  { name: 'Hamza Ali', phone: '+92 302 3456789', city: 'Lahore', orders: 61, spent: 54900, joined: 'Nov 2025', status: 'ACTIVE' },
+  { name: 'Ayesha Khan', phone: '+92 303 4567890', city: 'Islamabad', orders: 15, spent: 11800, joined: 'Mar 2026', status: 'ACTIVE' },
+  { name: 'Fatima Zahra', phone: '+92 304 5678901', city: 'Karachi', orders: 37, spent: 33100, joined: 'Dec 2025', status: 'ACTIVE' },
+  { name: 'Bilal Tariq', phone: '+92 305 6789012', city: 'Faisalabad', orders: 4, spent: 2600, joined: 'Jun 2026', status: 'BLOCKED' },
+  { name: 'Zainab A.', phone: '+92 306 7890123', city: 'Lahore', orders: 22, spent: 18700, joined: 'Feb 2026', status: 'ACTIVE' },
+];
