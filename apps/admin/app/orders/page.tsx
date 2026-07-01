@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, X, MapPin, StickyNote } from 'lucide-react';
+import { RefreshCw, X, MapPin, StickyNote, Search } from 'lucide-react';
 import { Topbar } from '@/components/topbar';
 import { fetchOrders, type SyncOrder } from '@/lib/order-sync';
 
@@ -46,6 +46,8 @@ function StatusBadge({ status }: { status: string }) {
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<SyncOrder[]>([]);
   const [filter, setFilter] = useState('ALL');
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState('newest');
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -58,18 +60,40 @@ export default function AdminOrdersPage() {
     return () => clearInterval(t);
   }, [load]);
 
-  const shown = orders.filter((o) => {
-    if (filter === 'ALL') return true;
-    if (filter === 'ACTIVE') return ['ACCEPTED', 'PREPARING', 'ON_THE_WAY'].includes(o.status);
-    return o.status === filter;
-  });
+  const query = q.trim().toLowerCase();
+  const shown = orders
+    .filter((o) => {
+      if (filter === 'ALL') return true;
+      if (filter === 'ACTIVE')
+        return ['ACCEPTED', 'PREPARING', 'ON_THE_WAY'].includes(o.status);
+      return o.status === filter;
+    })
+    .filter(
+      (o) =>
+        !query ||
+        o.number.toLowerCase().includes(query) ||
+        (o.customerName ?? '').toLowerCase().includes(query) ||
+        o.restaurantName.toLowerCase().includes(query),
+    )
+    .sort((a, b) => {
+      switch (sort) {
+        case 'oldest':
+          return a.placedAt - b.placedAt;
+        case 'high':
+          return b.total - a.total;
+        case 'low':
+          return a.total - b.total;
+        default:
+          return b.placedAt - a.placedAt; // newest
+      }
+    });
   const detail = orders.find((o) => o.id === detailId) ?? null;
 
   return (
     <>
       <Topbar title="Orders" subtitle="Live platform-wide orders" />
       <main className="space-y-5 p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex flex-wrap gap-2">
             {FILTERS.map((f) => (
               <button
@@ -85,10 +109,32 @@ export default function AdminOrdersPage() {
               </button>
             ))}
           </div>
-          <span className="flex items-center gap-1.5 text-sm text-slate-400">
-            <RefreshCw className="h-4 w-4" /> Live · {orders.length} total
-          </span>
+
+          <div className="relative ml-auto w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search order, customer, restaurant"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand"
+            />
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-brand"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="high">Highest total</option>
+            <option value="low">Lowest total</option>
+          </select>
         </div>
+
+        <p className="flex items-center gap-1.5 text-sm text-slate-400">
+          <RefreshCw className="h-4 w-4" /> Live · {shown.length} of {orders.length}{' '}
+          orders
+        </p>
 
         <section className="overflow-hidden rounded-2xl bg-white shadow-card">
           <div className="overflow-x-auto">

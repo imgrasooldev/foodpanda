@@ -1,4 +1,7 @@
-import { Bike, Circle } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { Bike, Circle, Search } from 'lucide-react';
 import { Topbar } from '@/components/topbar';
 
 const riders = [
@@ -16,15 +19,80 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   OFFLINE: { label: 'Offline', cls: 'text-slate-400' },
 };
 
+const FILTERS = [
+  { id: 'ALL', label: 'All' },
+  { id: 'ONLINE', label: 'Online' },
+  { id: 'ON_DELIVERY', label: 'On delivery' },
+  { id: 'OFFLINE', label: 'Offline' },
+];
+
 export default function RidersPage() {
+  const [q, setQ] = useState('');
+  const [filter, setFilter] = useState('ALL');
+  const [sort, setSort] = useState('deliveries');
+
   const online = riders.filter((r) => r.status !== 'OFFLINE').length;
+  const query = q.trim().toLowerCase();
+
+  const shown = riders
+    .filter((r) => filter === 'ALL' || r.status === filter)
+    .filter(
+      (r) =>
+        !query ||
+        r.name.toLowerCase().includes(query) ||
+        r.zone.toLowerCase().includes(query) ||
+        r.vehicle.toLowerCase().includes(query),
+    )
+    .sort((a, b) =>
+      sort === 'rating' ? b.rating - a.rating : b.deliveries - a.deliveries,
+    );
 
   return (
     <>
       <Topbar title="Riders" subtitle={`${online} of ${riders.length} online`} />
-      <main className="p-6">
+      <main className="space-y-5 p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-2">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  filter === f.id
+                    ? 'bg-brand text-white'
+                    : 'bg-white text-slate-600 shadow-card hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative ml-auto w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search name, zone, vehicle"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand"
+            />
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-brand"
+          >
+            <option value="deliveries">Most deliveries</option>
+            <option value="rating">Top rated</option>
+          </select>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {riders.map((r) => {
+          {shown.length === 0 && (
+            <p className="col-span-full py-10 text-center text-slate-400">
+              No riders match your filters.
+            </p>
+          )}
+          {shown.map((r) => {
             const s = STATUS[r.status];
             return (
               <div key={r.name} className="rounded-2xl bg-white p-5 shadow-card">
@@ -44,9 +112,7 @@ export default function RidersPage() {
                   </span>
                 </div>
                 <div className="mt-4 flex items-center justify-between border-t border-slate-50 pt-3 text-sm">
-                  <span className="text-slate-500">
-                    {r.deliveries} deliveries today
-                  </span>
+                  <span className="text-slate-500">{r.deliveries} deliveries today</span>
                   <span className="font-semibold text-slate-600">⭐ {r.rating}</span>
                 </div>
               </div>

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { searchCatalogue } from '@/lib/data';
-import { RestaurantCard } from '@/components/restaurant-card';
+import { SearchResults } from '@/components/search-results';
 import { SearchBox } from '@/components/search-box';
 
 export default function SearchPage({
@@ -55,16 +55,7 @@ export default function SearchPage({
         </section>
       )}
 
-      {restaurants.length > 0 && (
-        <section>
-          <h2 className="mb-4 text-lg font-bold">Restaurants</h2>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {restaurants.map((r) => (
-              <RestaurantCard key={r.id} restaurant={r} />
-            ))}
-          </div>
-        </section>
-      )}
+      {restaurants.length > 0 && <SearchResults restaurants={restaurants} />}
 
       {!q && (
         <div className="grid min-h-[40vh] place-items-center text-center">

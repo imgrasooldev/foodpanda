@@ -1,13 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { Star, Check, X, Ban, RotateCcw } from 'lucide-react';
+import { Star, Check, X, Ban, RotateCcw, Search } from 'lucide-react';
 import { Topbar } from '@/components/topbar';
 import { RestaurantStatusBadge } from '@/components/status-badge';
 import { restaurants as seed, type AdminRestaurant } from '@/lib/data';
 
+const STATUS_FILTERS = [
+  { id: 'ALL', label: 'All' },
+  { id: 'ACTIVE', label: 'Active' },
+  { id: 'PENDING_APPROVAL', label: 'Pending' },
+  { id: 'SUSPENDED', label: 'Suspended' },
+];
+
 export default function RestaurantsPage() {
   const [restaurants, setRestaurants] = useState<AdminRestaurant[]>(seed);
+  const [q, setQ] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sort, setSort] = useState('orders');
 
   const pending = restaurants.filter((r) => r.status === 'PENDING_APPROVAL');
 
@@ -15,6 +25,27 @@ export default function RestaurantsPage() {
     setRestaurants((prev) => prev.map((r) => (r.name === name ? { ...r, status } : r)));
   const reject = (name: string) =>
     setRestaurants((prev) => prev.filter((r) => r.name !== name));
+
+  const query = q.trim().toLowerCase();
+  const shown = restaurants
+    .filter((r) => statusFilter === 'ALL' || r.status === statusFilter)
+    .filter(
+      (r) =>
+        !query ||
+        r.name.toLowerCase().includes(query) ||
+        r.cuisine.toLowerCase().includes(query) ||
+        r.city.toLowerCase().includes(query),
+    )
+    .sort((a, b) => {
+      switch (sort) {
+        case 'rating':
+          return b.rating - a.rating;
+        case 'name':
+          return a.name.localeCompare(b.name);
+        default:
+          return b.orders - a.orders;
+      }
+    });
 
   return (
     <>
@@ -57,6 +88,43 @@ export default function RestaurantsPage() {
           </section>
         )}
 
+        {/* Search + filter + sort */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-2">
+            {STATUS_FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setStatusFilter(f.id)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  statusFilter === f.id
+                    ? 'bg-brand text-white'
+                    : 'bg-white text-slate-600 shadow-card hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative ml-auto w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search name, cuisine, city"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand"
+            />
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-brand"
+          >
+            <option value="orders">Most orders</option>
+            <option value="rating">Top rated</option>
+            <option value="name">Name (A–Z)</option>
+          </select>
+        </div>
+
         <section className="overflow-hidden rounded-2xl bg-white shadow-card">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -72,7 +140,14 @@ export default function RestaurantsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {restaurants.map((r) => (
+                {shown.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
+                      No restaurants match your filters.
+                    </td>
+                  </tr>
+                )}
+                {shown.map((r) => (
                   <tr key={r.name} className="hover:bg-slate-50/60">
                     <td className="px-5 py-3 font-semibold text-slate-700">
                       <div className="flex items-center gap-3">

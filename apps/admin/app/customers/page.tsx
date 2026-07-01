@@ -8,6 +8,7 @@ import { customers as seed, type AdminCustomer } from '@/lib/data';
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<AdminCustomer[]>(seed);
   const [q, setQ] = useState('');
+  const [sort, setSort] = useState('spent');
 
   const toggle = (name: string) =>
     setCustomers((prev) =>
@@ -18,25 +19,47 @@ export default function CustomersPage() {
       ),
     );
 
-  const shown = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(q.toLowerCase()) ||
-      c.phone.includes(q) ||
-      c.city.toLowerCase().includes(q.toLowerCase()),
-  );
+  const shown = customers
+    .filter(
+      (c) =>
+        c.name.toLowerCase().includes(q.toLowerCase()) ||
+        c.phone.includes(q) ||
+        c.city.toLowerCase().includes(q.toLowerCase()),
+    )
+    .sort((a, b) => {
+      switch (sort) {
+        case 'orders':
+          return b.orders - a.orders;
+        case 'name':
+          return a.name.localeCompare(b.name);
+        default:
+          return b.spent - a.spent;
+      }
+    });
 
   return (
     <>
       <Topbar title="Customers" subtitle={`${customers.length} registered`} />
       <main className="space-y-5 p-6">
-        <div className="relative max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search customers…"
-            className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand"
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search customers…"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand"
+            />
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-brand"
+          >
+            <option value="spent">Top spenders</option>
+            <option value="orders">Most orders</option>
+            <option value="name">Name (A–Z)</option>
+          </select>
         </div>
 
         <section className="overflow-hidden rounded-2xl bg-white shadow-card">
