@@ -28,6 +28,19 @@ const COLUMNS: { title: string; links: string[] }[] = [
   },
 ];
 
+// Wire the links we have real pages for; the rest are placeholders.
+const LINK_HREF: Record<string, string> = {
+  'Help Center': '/help',
+  FAQs: '/help',
+  'Contact Us': '/help',
+  'Track Your Order': '/orders',
+  'Restaurants Near You': '/',
+  'Terms & Conditions': '/terms',
+  'Privacy Policy': '/privacy',
+  'Refund Policy': '/terms',
+};
+const hrefFor = (label: string) => LINK_HREF[label] ?? '#';
+
 const CITIES = [
   'Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan',
   'Peshawar', 'Quetta', 'Hyderabad', 'Sialkot', 'Gujranwala', 'Bahawalpur',
@@ -82,7 +95,7 @@ export function Footer() {
                 {col.links.map((link) => (
                   <li key={link}>
                     <Link
-                      href="#"
+                      href={hrefFor(link)}
                       className="text-sm text-ink-muted transition hover:text-brand"
                     >
                       {link}

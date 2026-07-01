@@ -29,7 +29,14 @@ export default function CheckoutPage() {
   const [showNewAddr, setShowNewAddr] = useState(false);
   const [draft, setDraft] = useState({ line1: '', city: 'Karachi' });
   const [payment, setPayment] = useState<string>('CASH_ON_DELIVERY');
+  const [card, setCard] = useState({ number: '', expiry: '', cvv: '' });
   const [placing, setPlacing] = useState(false);
+
+  const cardComplete =
+    card.number.replace(/\s/g, '').length >= 15 &&
+    card.expiry.length === 5 &&
+    card.cvv.length >= 3;
+  const canPlace = payment !== 'CARD' || cardComplete;
   const [voucherCode, setVoucherCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [voucherMsg, setVoucherMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -243,6 +250,71 @@ export default function CheckoutPage() {
                 </button>
               ))}
             </div>
+
+            {/* Card entry appears when paying by card */}
+            {payment === 'CARD' && (
+              <div className="mt-4 rounded-xl border border-gray-200 p-4">
+                <div className="mb-3">
+                  <label className="mb-1 block text-xs font-semibold text-gray-500">
+                    Card number
+                  </label>
+                  <input
+                    inputMode="numeric"
+                    value={card.number}
+                    onChange={(e) =>
+                      setCard({
+                        ...card,
+                        number: e.target.value
+                          .replace(/\D/g, '')
+                          .slice(0, 16)
+                          .replace(/(.{4})/g, '$1 ')
+                          .trim(),
+                      })
+                    }
+                    placeholder="4242 4242 4242 4242"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-brand"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-gray-500">
+                      Expiry
+                    </label>
+                    <input
+                      value={card.expiry}
+                      onChange={(e) =>
+                        setCard({
+                          ...card,
+                          expiry: e.target.value
+                            .replace(/\D/g, '')
+                            .slice(0, 4)
+                            .replace(/(.{2})(.+)/, '$1/$2'),
+                        })
+                      }
+                      placeholder="MM/YY"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-brand"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold text-gray-500">
+                      CVV
+                    </label>
+                    <input
+                      inputMode="numeric"
+                      value={card.cvv}
+                      onChange={(e) =>
+                        setCard({ ...card, cvv: e.target.value.replace(/\D/g, '').slice(0, 4) })
+                      }
+                      placeholder="123"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-brand"
+                    />
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-ink-muted">
+                  🔒 Demo only — no real card is charged.
+                </p>
+              </div>
+            )}
           </Section>
         </div>
 
@@ -325,11 +397,16 @@ export default function CheckoutPage() {
 
           <button
             onClick={handlePlaceOrder}
-            disabled={placing}
+            disabled={placing || !canPlace}
             className="btn-brand mt-4 w-full py-3 text-base disabled:opacity-60"
           >
             {placing ? 'Placing order…' : `Place order · Rs ${total.toLocaleString()}`}
           </button>
+          {!canPlace && (
+            <p className="mt-2 text-center text-xs font-medium text-red-600">
+              Enter your card details to continue.
+            </p>
+          )}
           <p className="mt-2 text-center text-xs text-ink-muted">
             By placing your order you agree to our terms.
           </p>
