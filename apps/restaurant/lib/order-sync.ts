@@ -53,3 +53,33 @@ export async function patchOrder(
     /* offline */
   }
 }
+
+export interface RestaurantState {
+  isOpen: boolean;
+  soldOut: string[]; // sold-out item names
+}
+
+export async function fetchState(slug: string): Promise<RestaurantState> {
+  try {
+    const r = await fetch(`${SYNC}/restaurant-state/${slug}`, { cache: 'no-store' });
+    if (!r.ok) return { isOpen: true, soldOut: [] };
+    return r.json();
+  } catch {
+    return { isOpen: true, soldOut: [] };
+  }
+}
+
+export async function patchState(
+  slug: string,
+  patch: Partial<RestaurantState>,
+): Promise<void> {
+  try {
+    await fetch(`${SYNC}/restaurant-state/${slug}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+  } catch {
+    /* offline */
+  }
+}

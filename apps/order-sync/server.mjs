@@ -11,6 +11,9 @@ const PORT = process.env.SYNC_PORT ? Number(process.env.SYNC_PORT) : 4100;
 /** @type {Map<string, any>} */
 const orders = new Map();
 
+/** Per-restaurant live state: slug -> { isOpen, soldOut: string[] } */
+const restaurantState = new Map();
+
 // Seed a couple of demo orders so the vendor board isn't empty on first run.
 for (const o of [
   {
@@ -97,9 +100,24 @@ const server = createServer(async (req, res) => {
     }
   }
 
+  // Per-restaurant live state: { isOpen, soldOut: string[] }
+  const stateMatch = path.match(/^\/restaurant-state\/([^/]+)$/);
+  if (stateMatch) {
+    const slug = decodeURIComponent(stateMatch[1]);
+    const current = restaurantState.get(slug) ?? { isOpen: true, soldOut: [] };
+    if (method === 'GET') return send(res, 200, current);
+    if (method === 'PATCH') {
+      const body = await readBody(req);
+      const updated = { ...current, ...body };
+      restaurantState.set(slug, updated);
+      return send(res, 200, updated);
+    }
+  }
+
   // Reset (dev helper)
   if (path === '/reset' && method === 'POST') {
     orders.clear();
+    restaurantState.clear();
     return send(res, 200, { ok: true });
   }
 

@@ -1,3 +1,6 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ShoppingBag,
@@ -8,16 +11,45 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { Topbar } from '@/components/topbar';
-import { kpis, incomingOrders } from '@/lib/data';
+import { kpis } from '@/lib/data';
+import { fetchOrders, type SyncOrder } from '@/lib/order-sync';
+
+const MY_SLUG = 'student-biryani';
 
 export default function DashboardPage() {
-  const newCount = incomingOrders.filter((o) => o.status === 'NEW').length;
+  const [orders, setOrders] = useState<SyncOrder[]>([]);
+
+  const load = useCallback(async () => {
+    const all = await fetchOrders();
+    setOrders(all.filter((o) => o.restaurantSlug === MY_SLUG));
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 3000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  const newCount = orders.filter((o) => o.status === 'PLACED').length;
+  const startOfDay = new Date().setHours(0, 0, 0, 0);
+  const today = orders.filter((o) => o.placedAt >= startOfDay);
+  const ordersToday = today.length;
+  const revenueToday = today
+    .filter((o) => o.status === 'DELIVERED')
+    .reduce((s, o) => s + o.total, 0);
+  const decided = orders.filter((o) =>
+    ['ACCEPTED', 'PREPARING', 'ON_THE_WAY', 'DELIVERED', 'REJECTED'].includes(o.status),
+  );
+  const accepted = decided.filter((o) => o.status !== 'REJECTED').length;
+  const acceptanceRate = decided.length
+    ? Math.round((accepted / decided.length) * 100)
+    : kpis.acceptanceRate;
+  const recent = [...orders].sort((a, b) => b.placedAt - a.placedAt).slice(0, 8);
 
   return (
     <>
       <Topbar title="Dashboard" subtitle="Student Biryani · Tariq Road" />
       <main className="space-y-6 p-6">
-        {/* New orders alert */}
         {newCount > 0 && (
           <Link
             href="/orders"
@@ -35,10 +67,10 @@ export default function DashboardPage() {
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Orders today" value={kpis.ordersToday.toString()} delta={kpis.ordersDelta} icon={ShoppingBag} tint="bg-blue-50 text-blue-600" />
-          <StatCard label="Revenue today" value={`Rs ${(kpis.revenueToday / 1000).toFixed(1)}k`} delta={kpis.revenueDelta} icon={Wallet} tint="bg-green-50 text-green-600" />
+          <StatCard label="Orders today" value={ordersToday.toString()} icon={ShoppingBag} tint="bg-blue-50 text-blue-600" />
+          <StatCard label="Revenue today" value={`Rs ${revenueToday.toLocaleString()}`} icon={Wallet} tint="bg-green-50 text-green-600" />
           <StatCard label="Avg prep time" value={`${kpis.avgPrepMinutes} min`} icon={Timer} tint="bg-amber-50 text-amber-600" />
-          <StatCard label="Acceptance rate" value={`${kpis.acceptanceRate}%`} icon={CheckCircle2} tint="bg-brand-50 text-brand" />
+          <StatCard label="Acceptance rate" value={`${acceptanceRate}%`} icon={CheckCircle2} tint="bg-brand-50 text-brand" />
         </div>
 
         <section className="overflow-hidden rounded-2xl bg-white shadow-card">
@@ -60,17 +92,24 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {incomingOrders.map((o) => (
+                {recent.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-slate-400">
+                      No orders yet.
+                    </td>
+                  </tr>
+                )}
+                {recent.map((o) => (
                   <tr key={o.id} className="hover:bg-slate-50/60">
                     <td className="px-5 py-3 font-semibold text-slate-700">{o.number}</td>
-                    <td className="px-5 py-3 text-slate-600">{o.customer}</td>
+                    <td className="px-5 py-3 text-slate-600">{o.customerName ?? '—'}</td>
                     <td className="px-5 py-3 text-slate-500">
-                      {o.items.reduce((n, i) => n + i.qty, 0)} item(s)
+                      {o.items.reduce((n, i) => n + i.quantity, 0)} item(s)
                     </td>
                     <td className="px-5 py-3 font-semibold">Rs {o.total.toLocaleString()}</td>
                     <td className="px-5 py-3">
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                        {o.status.toLowerCase()}
+                        {o.status.toLowerCase().replace(/_/g, ' ')}
                       </span>
                     </td>
                   </tr>

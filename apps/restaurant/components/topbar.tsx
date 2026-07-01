@@ -1,10 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
+import { fetchState, patchState } from '@/lib/order-sync';
+
+const MY_SLUG = 'student-biryani';
 
 export function Topbar({ title, subtitle }: { title: string; subtitle?: string }) {
   const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    fetchState(MY_SLUG).then((s) => setOpen(s.isOpen));
+  }, []);
+
+  function toggleOpen() {
+    setOpen((v) => {
+      const next = !v;
+      patchState(MY_SLUG, { isOpen: next });
+      return next;
+    });
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-slate-200 bg-white/90 px-6 backdrop-blur">
@@ -16,7 +31,7 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
       <div className="ml-auto flex items-center gap-4">
         {/* Open / Closed toggle */}
         <button
-          onClick={() => setOpen((v) => !v)}
+          onClick={toggleOpen}
           className="flex items-center gap-2 rounded-full border border-slate-200 py-1.5 pl-3 pr-1.5 text-sm font-semibold"
         >
           <span className={open ? 'text-green-600' : 'text-slate-400'}>

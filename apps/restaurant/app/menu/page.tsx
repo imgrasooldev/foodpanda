@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, X } from 'lucide-react';
 import { Topbar } from '@/components/topbar';
 import { menu as initialMenu, type VendorMenuItem } from '@/lib/data';
+import { fetchState, patchState } from '@/lib/order-sync';
+
+const MY_SLUG = 'student-biryani';
 
 const BLANK = {
   name: '',
@@ -19,12 +22,28 @@ export default function MenuPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(BLANK);
 
+  // On load, reflect what's currently marked sold-out on the live server.
+  useEffect(() => {
+    fetchState(MY_SLUG).then((s) => {
+      setMenu((prev) =>
+        prev.map((m) => ({ ...m, available: !s.soldOut.includes(m.name) })),
+      );
+    });
+  }, []);
+
   const categories = Array.from(new Set(menu.map((m) => m.category)));
 
+  // Toggle availability locally AND push the sold-out list to customers.
   const toggle = (id: string) =>
-    setMenu((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, available: !m.available } : m)),
-    );
+    setMenu((prev) => {
+      const next = prev.map((m) =>
+        m.id === id ? { ...m, available: !m.available } : m,
+      );
+      patchState(MY_SLUG, {
+        soldOut: next.filter((m) => !m.available).map((m) => m.name),
+      });
+      return next;
+    });
 
   const remove = (id: string) => setMenu((prev) => prev.filter((m) => m.id !== id));
 
