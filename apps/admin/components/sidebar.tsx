@@ -10,7 +10,9 @@ import {
   Users,
   Settings,
   LifeBuoy,
+  LogOut,
 } from 'lucide-react';
+import { useAdminAuth } from './auth-context';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -27,6 +29,7 @@ const SECONDARY = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAdminAuth();
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -53,16 +56,22 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-slate-100 p-4">
+      <div className="space-y-2 border-t border-slate-100 p-4">
         <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-brand text-sm font-bold text-white">
-            GR
+            {user?.name?.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() ?? 'AD'}
           </span>
           <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-semibold">Ghulam Rasool</p>
-            <p className="truncate text-xs text-slate-400">Super Admin</p>
+            <p className="truncate text-sm font-semibold">{user?.name ?? 'Admin'}</p>
+            <p className="truncate text-xs text-slate-400">{user?.role ?? ''}</p>
           </div>
         </div>
+        <button
+          onClick={logout}
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+        >
+          <LogOut className="h-[18px] w-[18px]" /> Log out
+        </button>
       </div>
     </aside>
   );

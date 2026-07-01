@@ -9,7 +9,9 @@ import {
   History,
   Star,
   Settings,
+  LogOut,
 } from 'lucide-react';
+import { useVendorAuth } from './auth-context';
 
 const NAV = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,6 +24,7 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user, logout } = useVendorAuth();
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
@@ -56,16 +59,26 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-slate-100 p-4">
+      <div className="space-y-2 border-t border-slate-100 p-4">
         <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-brand text-sm">
             🍚
           </span>
           <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-semibold">Student Biryani</p>
-            <p className="truncate text-xs text-slate-400">Tariq Road, Karachi</p>
+            <p className="truncate text-sm font-semibold">
+              {user?.restaurant ?? 'Student Biryani'}
+            </p>
+            <p className="truncate text-xs text-slate-400">
+              {user?.name ?? 'Tariq Road, Karachi'}
+            </p>
           </div>
         </div>
+        <button
+          onClick={logout}
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+        >
+          <LogOut className="h-[18px] w-[18px]" /> Log out
+        </button>
       </div>
     </aside>
   );
