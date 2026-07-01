@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import {
-  MapPin,
   ChevronDown,
   Globe,
   ShoppingBag,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useCart } from './cart-context';
 import { useAuth } from './auth-context';
+import { AddressPicker } from './address-picker';
 
 export function Header() {
   const { count, setOpen } = useCart();
@@ -32,15 +32,7 @@ export function Header() {
           </span>
         </Link>
 
-        <button className="hidden items-center gap-2 text-sm md:flex">
-          <MapPin className="h-4 w-4 text-brand" />
-          <span className="text-left leading-tight">
-            <span className="block text-[11px] text-ink-muted">New address</span>
-            <span className="flex items-center gap-1 font-semibold">
-              Select your address <ChevronDown className="h-3.5 w-3.5" />
-            </span>
-          </span>
-        </button>
+        <AddressPicker />
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           {isAuthed ? (
