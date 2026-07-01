@@ -10,15 +10,28 @@ import {
 import type { CartLine } from './cart-context';
 
 export type OrderStatus =
-  | 'PLACED'
+  | 'PLACED' // awaiting restaurant confirmation
   | 'ACCEPTED'
   | 'PREPARING'
   | 'ON_THE_WAY'
   | 'DELIVERED'
-  | 'CANCELLED';
+  | 'CANCELLED' // cancelled by the customer
+  | 'REJECTED'; // declined by the restaurant
 
 // Statuses at which a customer may still cancel (before it's out for delivery).
 export const CANCELLABLE: OrderStatus[] = ['PLACED', 'ACCEPTED', 'PREPARING'];
+
+// Realistic dwell time per status before it moves on (ms). PLACED is the
+// restaurant-confirmation wait; the rest are kitchen + delivery stages.
+export const STEP_DELAYS: Partial<Record<OrderStatus, number>> = {
+  PLACED: 9000,
+  ACCEPTED: 5000,
+  PREPARING: 12000,
+  ON_THE_WAY: 14000,
+};
+
+// Chance the restaurant declines the order at the confirmation step.
+export const REJECTION_CHANCE = 0.1;
 
 export const CANCEL_REASONS = [
   'Ordered by mistake',
@@ -85,6 +98,7 @@ interface OrdersContextValue {
   getOrder: (id: string) => Order | undefined;
   advanceStatus: (id: string) => void;
   cancelOrder: (id: string, reason: string) => void;
+  rejectOrder: (id: string, reason: string) => void;
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null);
@@ -156,9 +170,20 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  // Restaurant declines an order that is still awaiting confirmation.
+  function rejectOrder(id: string, reason: string) {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === id && o.status === 'PLACED'
+          ? { ...o, status: 'REJECTED', cancelReason: reason, cancelledAt: Date.now() }
+          : o,
+      ),
+    );
+  }
+
   return (
     <OrdersContext.Provider
-      value={{ orders, placeOrder, getOrder, advanceStatus, cancelOrder }}
+      value={{ orders, placeOrder, getOrder, advanceStatus, cancelOrder, rejectOrder }}
     >
       {children}
     </OrdersContext.Provider>

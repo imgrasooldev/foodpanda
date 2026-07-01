@@ -19,6 +19,8 @@ import {
   STATUS_FLOW,
   CANCELLABLE,
   CANCEL_REASONS,
+  STEP_DELAYS,
+  REJECTION_CHANCE,
   type OrderStatus,
 } from '@/components/orders-context';
 import { useCart } from '@/components/cart-context';
@@ -33,9 +35,28 @@ const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
   { status: 'DELIVERED', label: 'Delivered', icon: PackageCheck },
 ];
 
+function statusHeadline(status: OrderStatus, isPickup: boolean): string {
+  switch (status) {
+    case 'PLACED':
+      return 'Waiting for the restaurant to confirm';
+    case 'ACCEPTED':
+      return 'Order confirmed 🎉';
+    case 'PREPARING':
+      return isPickup ? 'Getting your order ready' : 'Your food is being prepared';
+    case 'ON_THE_WAY':
+      return isPickup ? 'Almost ready for pickup' : 'Your order is on its way';
+    case 'DELIVERED':
+      return isPickup
+        ? 'Collected — enjoy your meal! 🎉'
+        : 'Delivered — enjoy your meal! 🎉';
+    default:
+      return 'Tracking your order';
+  }
+}
+
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
-  const { getOrder, advanceStatus, cancelOrder } = useOrders();
+  const { getOrder, advanceStatus, cancelOrder, rejectOrder } = useOrders();
   const { reorder } = useCart();
   const router = useRouter();
   const [hydrated, setHydrated] = useState(false);
@@ -46,13 +67,25 @@ export default function OrderTrackingPage() {
   const order = getOrder(id);
   const currentIdx = order ? STATUS_FLOW.indexOf(order.status) : 0;
 
-  // Simulate kitchen + delivery progress (stops once delivered or cancelled).
+  // Simulate the real lifecycle: the restaurant confirms (or declines) the
+  // order, then kitchen + delivery progress — each stage with a realistic wait.
   useEffect(() => {
-    if (!order || order.status === 'DELIVERED' || order.status === 'CANCELLED')
-      return;
-    const t = setTimeout(() => advanceStatus(order.id), 6000);
+    if (!order) return;
+    const terminal: OrderStatus[] = ['DELIVERED', 'CANCELLED', 'REJECTED'];
+    if (terminal.includes(order.status)) return;
+    const delay = STEP_DELAYS[order.status] ?? 6000;
+    const t = setTimeout(() => {
+      if (order.status === 'PLACED' && Math.random() < REJECTION_CHANCE) {
+        rejectOrder(
+          order.id,
+          'The restaurant is too busy to accept your order right now',
+        );
+      } else {
+        advanceStatus(order.id);
+      }
+    }, delay);
     return () => clearTimeout(t);
-  }, [order, advanceStatus]);
+  }, [order, advanceStatus, rejectOrder]);
 
   if (!hydrated) {
     return <main className="container-page py-16 text-center text-ink-muted">Loading…</main>;
@@ -74,6 +107,8 @@ export default function OrderTrackingPage() {
 
   const delivered = order.status === 'DELIVERED';
   const cancelled = order.status === 'CANCELLED';
+  const rejected = order.status === 'REJECTED';
+  const waiting = order.status === 'PLACED';
   const cancellable = CANCELLABLE.includes(order.status);
   const isPickup = order.fulfillmentType === 'PICKUP';
   const progress = currentIdx / (STATUS_FLOW.length - 1);
@@ -83,18 +118,21 @@ export default function OrderTrackingPage() {
     DELIVERED: 'Collected',
   };
 
-  // --- Cancelled view ---
-  if (cancelled) {
+  // --- Cancelled / rejected view ---
+  if (cancelled || rejected) {
     return (
       <main className="container-page py-6">
         <div className="mx-auto max-w-2xl space-y-6">
           <div className="rounded-2xl bg-gradient-to-r from-red-500 to-red-700 p-6 text-white">
             <p className="text-sm text-white/80">Order {order.number}</p>
             <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold">
-              <XCircle className="h-6 w-6" /> Order cancelled
+              <XCircle className="h-6 w-6" />
+              {rejected ? 'Order declined' : 'Order cancelled'}
             </h1>
             <p className="mt-2 text-white/90">
-              This order was cancelled{order.cancelReason ? ` — ${order.cancelReason}` : ''}.
+              {rejected
+                ? `The restaurant couldn't accept this order${order.cancelReason ? ` — ${order.cancelReason}` : ''}.`
+                : `This order was cancelled${order.cancelReason ? ` — ${order.cancelReason}` : ''}.`}
             </p>
           </div>
 
@@ -154,24 +192,35 @@ export default function OrderTrackingPage() {
           <p className="text-sm text-white/80">
             Order {order.number} · {isPickup ? 'Pick-up' : 'Delivery'}
           </p>
-          <h1 className="mt-1 text-2xl font-extrabold">
-            {delivered
-              ? isPickup
-                ? 'Collected — enjoy your meal! 🎉'
-                : 'Delivered — enjoy your meal! 🎉'
-              : isPickup
-                ? 'Getting your order ready'
-                : 'Your order is on its way'}
+          <h1 className="mt-1 flex items-center gap-2 text-2xl font-extrabold">
+            {waiting && (
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-white" />
+            )}
+            {statusHeadline(order.status, isPickup)}
           </h1>
           <p className="mt-2 flex items-center gap-2 text-white/90">
             <Clock className="h-4 w-4" />
-            {delivered
-              ? 'Completed just now'
-              : isPickup
-                ? `Ready for pickup in ~${order.etaMinutes} min`
-                : `Estimated arrival in ~${order.etaMinutes} min`}
+            {waiting
+              ? 'Usually confirmed within a few minutes'
+              : delivered
+                ? 'Completed just now'
+                : isPickup
+                  ? `Ready for pickup in ~${order.etaMinutes} min`
+                  : `Estimated arrival in ~${order.etaMinutes} min`}
           </p>
         </div>
+
+        {/* Awaiting-confirmation notice */}
+        {waiting && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <span className="text-lg">⏳</span>
+            <p>
+              We&apos;ve sent your order to <b>{order.restaurantName}</b>. They
+              need to accept it before the kitchen starts. You can cancel for
+              free while you wait.
+            </p>
+          </div>
+        )}
 
         {/* Map-style tracker */}
         <div className="relative overflow-hidden rounded-2xl bg-white p-6 shadow-card">
@@ -205,8 +254,11 @@ export default function OrderTrackingPage() {
         <div className="rounded-2xl bg-white p-6 shadow-card">
           <ol className="space-y-5">
             {STEPS.map((step, i) => {
-              const done = i < currentIdx;
-              const active = i === currentIdx;
+              // While awaiting confirmation, "Order placed" is done and
+              // "Restaurant accepted" is the pending step.
+              const activeIdx = waiting ? 1 : currentIdx;
+              const done = i < activeIdx;
+              const active = i === activeIdx;
               const Icon = step.icon;
               return (
                 <li key={step.status} className="flex items-center gap-4">
@@ -228,7 +280,9 @@ export default function OrderTrackingPage() {
                       {(isPickup && pickupLabel[step.status]) || step.label}
                     </p>
                     {active && !delivered && (
-                      <p className="text-sm text-brand">In progress…</p>
+                      <p className="text-sm text-brand">
+                        {waiting ? 'Awaiting confirmation…' : 'In progress…'}
+                      </p>
                     )}
                   </div>
                   {active && !delivered && (

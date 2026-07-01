@@ -8,12 +8,13 @@ import { useOrders, type OrderStatus } from '@/components/orders-context';
 import { useCart } from '@/components/cart-context';
 
 const STATUS_LABEL: Record<OrderStatus, { text: string; cls: string }> = {
-  PLACED: { text: 'Placed', cls: 'bg-blue-50 text-blue-700' },
-  ACCEPTED: { text: 'Accepted', cls: 'bg-blue-50 text-blue-700' },
+  PLACED: { text: 'Awaiting confirmation', cls: 'bg-amber-50 text-amber-700' },
+  ACCEPTED: { text: 'Confirmed', cls: 'bg-blue-50 text-blue-700' },
   PREPARING: { text: 'Preparing', cls: 'bg-amber-50 text-amber-700' },
   ON_THE_WAY: { text: 'On the way', cls: 'bg-violet-50 text-violet-700' },
   DELIVERED: { text: 'Delivered', cls: 'bg-green-50 text-green-700' },
   CANCELLED: { text: 'Cancelled', cls: 'bg-red-50 text-red-600' },
+  REJECTED: { text: 'Declined', cls: 'bg-red-50 text-red-600' },
 };
 
 export default function OrdersHistoryPage() {
