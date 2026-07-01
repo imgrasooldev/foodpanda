@@ -1,10 +1,16 @@
+'use client';
+
 import Link from 'next/link';
-import { Star, Clock, Bike } from 'lucide-react';
+import { Star, Clock, Bike, Footprints } from 'lucide-react';
 import type { Restaurant } from '@/lib/types';
 import { FavoriteButton } from './favorite-button';
+import { useOrderMode } from './order-mode-context';
 
 export function RestaurantCard({ restaurant: r }: { restaurant: Restaurant }) {
+  const { isPickup } = useOrderMode();
   const topRated = r.ratingAvg >= 4.6;
+  // Deterministic pseudo-distance for pickup context.
+  const distanceKm = (0.6 + (r.avgPrepMinutes % 7) * 0.5).toFixed(1);
 
   return (
     <Link
@@ -35,12 +41,18 @@ export function RestaurantCard({ restaurant: r }: { restaurant: Restaurant }) {
         <div className="absolute bottom-3 left-3 flex items-center gap-2">
           <span className="flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-ink shadow-sm backdrop-blur">
             <Clock className="h-3.5 w-3.5 text-brand" />
-            {r.avgPrepMinutes}–{r.avgPrepMinutes + 10} min
+            {isPickup ? `Ready in ${r.avgPrepMinutes} min` : `${r.avgPrepMinutes}–${r.avgPrepMinutes + 10} min`}
           </span>
-          {r.freeDelivery && (
-            <span className="rounded-full bg-green-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
-              Free delivery
+          {isPickup ? (
+            <span className="rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-ink shadow-sm backdrop-blur">
+              {distanceKm} km
             </span>
+          ) : (
+            r.freeDelivery && (
+              <span className="rounded-full bg-green-600 px-2.5 py-1 text-xs font-bold text-white shadow-sm">
+                Free delivery
+              </span>
+            )
           )}
         </div>
 
@@ -73,14 +85,25 @@ export function RestaurantCard({ restaurant: r }: { restaurant: Restaurant }) {
         </div>
 
         <div className="mt-2 flex items-center gap-1.5 text-sm text-ink-muted">
-          <Bike className="h-4 w-4" />
-          {r.freeDelivery ? (
-            <span className="font-semibold text-green-600">Free delivery</span>
+          {isPickup ? (
+            <>
+              <Footprints className="h-4 w-4 text-brand" />
+              <span className="font-semibold text-brand">Self-pickup</span>
+              <span className="text-gray-300">·</span>
+              <span>{distanceKm} km away</span>
+            </>
           ) : (
-            <span>Rs {r.deliveryFee} delivery</span>
+            <>
+              <Bike className="h-4 w-4" />
+              {r.freeDelivery ? (
+                <span className="font-semibold text-green-600">Free delivery</span>
+              ) : (
+                <span>Rs {r.deliveryFee} delivery</span>
+              )}
+              <span className="text-gray-300">·</span>
+              <span>Min Rs {r.minOrderAmount}</span>
+            </>
           )}
-          <span className="text-gray-300">·</span>
-          <span>Min Rs {r.minOrderAmount}</span>
           <span className="ml-auto font-medium text-gray-400">
             {'₨'.repeat(r.priceLevel)}
           </span>
